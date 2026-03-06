@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { TournamentCard } from '@/components/tournaments/tournament-card'
+import { LiveMatchesWidget } from '@/components/matches/live-matches-widget'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { ArrowRight } from 'lucide-react'
@@ -72,6 +73,8 @@ export default async function DashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      <LiveMatchesWidget />
 
       {memberships.length > 0 && (
         <div className="space-y-3">

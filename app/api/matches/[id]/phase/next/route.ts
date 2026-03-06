@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
 import { canManageTournament } from '@/services/tournaments'
+import { broadcastMatchEvent } from '@/lib/realtime'
 import type { MatchStatus } from '@prisma/client'
 
 type Props = { params: Promise<{ id: string }> }
@@ -63,7 +64,14 @@ export async function POST(_req: NextRequest, { params }: Props) {
       status: nextStatus,
       ...(tsField ? { [tsField]: now } : {}),
     },
-    select: { id: true, status: true },
+    select: { id: true, status: true, [tsField ?? 'id']: true },
+  })
+
+  // Broadcast phase change for instant client updates (supplements postgres_changes)
+  void broadcastMatchEvent(id, 'PHASE_CHANGE', {
+    matchId: id,
+    status: nextStatus,
+    timestamp: now.toISOString(),
   })
 
   return NextResponse.json({ match: updated })

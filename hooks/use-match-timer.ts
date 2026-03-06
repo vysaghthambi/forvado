@@ -81,7 +81,7 @@ export function useMatchTimer(match: MatchTimestamps) {
     }
 
     compute()
-    const interval = setInterval(compute, 15000) // update every 15s
+    const interval = setInterval(compute, 1000) // update every second
     return () => clearInterval(interval)
   }, [match])
 

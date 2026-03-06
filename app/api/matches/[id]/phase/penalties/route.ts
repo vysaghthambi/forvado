@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
 import { canManageTournament } from '@/services/tournaments'
+import { broadcastMatchEvent } from '@/lib/realtime'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -22,11 +23,14 @@ export async function POST(_req: NextRequest, { params }: Props) {
     return NextResponse.json({ error: 'Penalties can only be triggered after Full Time or Extra Time Full Time' }, { status: 400 })
   }
 
+  const now = new Date()
   const updated = await prisma.match.update({
     where: { id },
-    data: { status: 'PENALTY_SHOOTOUT', penaltyStartedAt: new Date() },
+    data: { status: 'PENALTY_SHOOTOUT', penaltyStartedAt: now },
     select: { id: true, status: true },
   })
+
+  void broadcastMatchEvent(id, 'PHASE_CHANGE', { matchId: id, status: 'PENALTY_SHOOTOUT', timestamp: now.toISOString() })
 
   return NextResponse.json({ match: updated })
 }

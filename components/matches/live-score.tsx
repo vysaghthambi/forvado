@@ -50,13 +50,16 @@ export function LiveScore({ initialMatch }: Props) {
   useEffect(() => {
     const supabase = createClient()
     const channel = supabase
-      .channel(`match:${initialMatch.id}:score`)
+      .channel(`match:${initialMatch.id}`)
+      // postgres_changes: reliable delivery for score updates
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
         table: 'matches',
         filter: `id=eq.${initialMatch.id}`,
       }, refresh)
+      // broadcast: low-latency phase change events from coordinator API
+      .on('broadcast', { event: 'PHASE_CHANGE' }, refresh)
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [initialMatch.id, refresh])
