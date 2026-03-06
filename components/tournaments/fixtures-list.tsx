@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import Link from 'next/link'
 import { format } from 'date-fns'
 import { MapPin, Calendar } from 'lucide-react'
 
@@ -57,7 +57,8 @@ export function FixturesList({ matches, showGroup = false }: Props) {
   return (
     <div className="space-y-2">
       {matches.map((m) => (
-        <div key={m.id} className="rounded-xl border border-border/50 bg-card p-4">
+        <Link key={m.id} href={`/matches/${m.id}`} className="block">
+        <div className="rounded-xl border border-border/50 bg-card p-4 hover:border-border transition-colors">
           <div className="flex items-center gap-3">
             {/* Home Team */}
             <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
@@ -99,6 +100,7 @@ export function FixturesList({ matches, showGroup = false }: Props) {
             {showGroup && m.group && <Badge variant="secondary" className="text-[10px] h-4 px-1">Group {m.group.name}</Badge>}
           </div>
         </div>
+        </Link>
       ))}
     </div>
   )
