@@ -1,0 +1,68 @@
+import { createClient } from '@/lib/supabase/server'
+import { prisma } from '@/lib/prisma'
+import { redirect } from 'next/navigation'
+import type { User } from '@prisma/client'
+
+/**
+ * Returns the current Supabase auth user.
+ * Throws if not authenticated.
+ */
+export async function getAuthUser() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser()
+
+  if (error || !user) {
+    return null
+  }
+  return user
+}
+
+/**
+ * Returns the current DB user record.
+ * Redirects to /login if not authenticated, or to /setup if profile incomplete.
+ */
+export async function requireUser(): Promise<User> {
+  const authUser = await getAuthUser()
+  if (!authUser) redirect('/login')
+
+  const user = await prisma.user.findUnique({ where: { authId: authUser.id } })
+  if (!user) redirect('/login')
+
+  if (!user.profileComplete) redirect('/setup')
+
+  return user
+}
+
+/**
+ * Like requireUser() but does NOT redirect to /setup.
+ * Used in the setup wizard itself.
+ */
+export async function requireAuth(): Promise<User | null> {
+  const authUser = await getAuthUser()
+  if (!authUser) redirect('/login')
+
+  const user = await prisma.user.findUnique({ where: { authId: authUser.id } })
+  return user
+}
+
+/**
+ * Finds or creates a DB User record from a Supabase auth user.
+ * Called after OAuth callback.
+ */
+export async function findOrCreateUser(authId: string, email: string): Promise<User> {
+  const existing = await prisma.user.findUnique({ where: { authId } })
+  if (existing) return existing
+
+  return prisma.user.create({
+    data: {
+      authId,
+      email,
+      displayName: email.split('@')[0],
+      role: 'PLAYER',
+      profileComplete: false,
+    },
+  })
+}
