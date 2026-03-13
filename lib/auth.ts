@@ -28,8 +28,11 @@ export async function requireUser(): Promise<User> {
   const authUser = await getAuthUser()
   if (!authUser) redirect('/login')
 
-  const user = await prisma.user.findUnique({ where: { authId: authUser.id } })
-  if (!user) redirect('/login')
+  let user = await prisma.user.findUnique({ where: { authId: authUser.id } })
+  if (!user) {
+    if (!authUser.email) redirect('/login')
+    user = await findOrCreateUser(authUser.id, authUser.email)
+  }
 
   if (!user.profileComplete) redirect('/setup')
 
@@ -39,13 +42,19 @@ export async function requireUser(): Promise<User> {
 /**
  * Like requireUser() but does NOT redirect to /setup.
  * Used in the setup wizard itself.
+ * Auto-creates the DB record if the Supabase session exists but the row is missing
+ * (e.g. after a DB reset with an existing auth session).
  */
 export async function requireAuth(): Promise<User | null> {
   const authUser = await getAuthUser()
   if (!authUser) redirect('/login')
 
   const user = await prisma.user.findUnique({ where: { authId: authUser.id } })
-  return user
+  if (user) return user
+
+  // DB record missing but auth session is valid — recreate it
+  if (!authUser.email) redirect('/login')
+  return findOrCreateUser(authUser.id, authUser.email)
 }
 
 /**

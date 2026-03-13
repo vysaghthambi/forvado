@@ -43,11 +43,44 @@ export async function POST(_req: NextRequest, { params }: Props) {
   const { id } = await params
   const match = await prisma.match.findUnique({
     where: { id },
-    select: { tournamentId: true, status: true },
+    select: { tournamentId: true, status: true, homeTeamId: true, awayTeamId: true, playingMembers: true },
   })
   if (!match) return NextResponse.json({ error: 'Match not found' }, { status: 404 })
   if (!(await canManageTournament(match.tournamentId, user.id, user.role))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  // Gate: tournament must be ONGOING before kick-off
+  if (match.status === 'SCHEDULED') {
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: match.tournamentId },
+      select: { status: true },
+    })
+    if (!tournament || tournament.status !== 'ONGOING') {
+      return NextResponse.json(
+        { error: 'Tournament must be in Ongoing status before starting a match' },
+        { status: 409 },
+      )
+    }
+  }
+
+  // Gate: both teams must have a full starting lineup before kick-off
+  if (match.status === 'SCHEDULED') {
+    const lineupCounts = await prisma.matchLineup.groupBy({
+      by: ['teamId'],
+      where: { matchId: id, isSubstitute: false },
+      _count: { _all: true },
+    })
+    const homeCount = lineupCounts.find((r) => r.teamId === match.homeTeamId)?._count._all ?? 0
+    const awayCount = lineupCounts.find((r) => r.teamId === match.awayTeamId)?._count._all ?? 0
+    if (homeCount < match.playingMembers || awayCount < match.playingMembers) {
+      return NextResponse.json(
+        {
+          error: `Set lineups for both teams before starting (home: ${homeCount}/${match.playingMembers}, away: ${awayCount}/${match.playingMembers})`,
+        },
+        { status: 409 },
+      )
+    }
   }
 
   const nextStatus = NEXT_PHASE[match.status]

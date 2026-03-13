@@ -17,7 +17,45 @@ interface MatchTimestamps {
   matchTime: number
 }
 
-function pad(n: number) { return n.toString().padStart(2, '0') }
+interface ElapsedArgs {
+  status: string
+  matchTime: number
+  firstHalfStartedAt: string | null
+  secondHalfStartedAt: string | null
+  etFirstHalfStartedAt: string | null
+  etSecondHalfStartedAt: string | null
+}
+
+/** Returns current elapsed match minute as a plain number (0 for non-live phases). */
+export function computeElapsedMinutes(match: ElapsedArgs): number {
+  const now = Date.now()
+  const half = match.matchTime / 2
+
+  switch (match.status) {
+    case 'FIRST_HALF': {
+      if (!match.firstHalfStartedAt) return 0
+      const secs = (now - new Date(match.firstHalfStartedAt).getTime()) / 1000
+      return Math.min(Math.floor(secs / 60), half + 10)
+    }
+    case 'SECOND_HALF': {
+      if (!match.secondHalfStartedAt) return half
+      const secs = (now - new Date(match.secondHalfStartedAt).getTime()) / 1000
+      return Math.min(Math.floor(half + secs / 60), match.matchTime + 10)
+    }
+    case 'EXTRA_TIME_FIRST_HALF': {
+      if (!match.etFirstHalfStartedAt) return match.matchTime
+      const secs = (now - new Date(match.etFirstHalfStartedAt).getTime()) / 1000
+      return Math.min(Math.floor(match.matchTime + secs / 60), match.matchTime + 20)
+    }
+    case 'EXTRA_TIME_SECOND_HALF': {
+      if (!match.etSecondHalfStartedAt) return match.matchTime + 15
+      const secs = (now - new Date(match.etSecondHalfStartedAt).getTime()) / 1000
+      return Math.min(Math.floor(match.matchTime + 15 + secs / 60), match.matchTime + 30)
+    }
+    default:
+      return 0
+  }
+}
 
 function formatMinutes(totalSeconds: number) {
   const mins = Math.floor(totalSeconds / 60)

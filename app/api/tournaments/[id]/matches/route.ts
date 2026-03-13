@@ -7,13 +7,14 @@ import { z } from 'zod'
 type Props = { params: Promise<{ id: string }> }
 
 const createSchema = z.object({
-  homeTeamId: z.string(),
-  awayTeamId: z.string(),
-  scheduledAt: z.string(),
-  venue: z.string().optional(),
-  groupId: z.string().optional(),
-  round: z.string().optional(),
-  matchTime: z.string().optional(),
+  homeTeamId:     z.string(),
+  awayTeamId:     z.string(),
+  scheduledAt:    z.string(),
+  venue:          z.string().optional(),
+  groupId:        z.string().optional(),
+  round:          z.string().optional(),
+  matchOrder:     z.number().int().positive().optional(),
+  matchTime:      z.string().optional(),
   playingMembers: z.string().optional(),
   maxSubstitutes: z.string().optional(),
 })
@@ -77,13 +78,16 @@ export async function POST(req: NextRequest, { params }: Props) {
   })
   if (!tournament) return NextResponse.json({ error: 'Tournament not found' }, { status: 404 })
 
-  // Get next match order
-  const lastMatch = await prisma.match.findFirst({
-    where: { tournamentId: id },
-    orderBy: { matchOrder: 'desc' },
-    select: { matchOrder: true },
-  })
-  const matchOrder = (lastMatch?.matchOrder ?? 0) + 1
+  // Use caller-supplied match order, or auto-assign after the last existing one
+  let matchOrder = d.matchOrder
+  if (!matchOrder) {
+    const lastMatch = await prisma.match.findFirst({
+      where: { tournamentId: id },
+      orderBy: { matchOrder: 'desc' },
+      select: { matchOrder: true },
+    })
+    matchOrder = (lastMatch?.matchOrder ?? 0) + 1
+  }
 
   const match = await prisma.match.create({
     data: {

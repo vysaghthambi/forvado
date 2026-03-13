@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { Loader2, Plus } from 'lucide-react'
+import { computeElapsedMinutes } from '@/hooks/use-match-timer'
 
 interface Player {
   id: string
@@ -20,12 +21,21 @@ interface Player {
 
 interface Team { id: string; name: string }
 
+interface MatchTimestamps {
+  matchTime: number
+  firstHalfStartedAt: string | null
+  secondHalfStartedAt: string | null
+  etFirstHalfStartedAt: string | null
+  etSecondHalfStartedAt: string | null
+}
+
 interface Props {
   matchId: string
   status: string
   homeTeam: Team
   awayTeam: Team
   players: Player[]
+  timestamps: MatchTimestamps
 }
 
 const EVENT_TYPES = [
@@ -40,13 +50,15 @@ const EVENT_TYPES = [
 
 const ACTIVE_PHASES = ['FIRST_HALF', 'SECOND_HALF', 'EXTRA_TIME_FIRST_HALF', 'EXTRA_TIME_SECOND_HALF']
 
-export function EventLogger({ matchId, status, homeTeam, awayTeam, players }: Props) {
+export function EventLogger({ matchId, status, homeTeam, awayTeam, players, timestamps }: Props) {
   const router = useRouter()
   const [type, setType] = useState('')
   const [teamId, setTeamId] = useState('')
   const [primaryUserId, setPrimaryUserId] = useState('')
   const [secondaryUserId, setSecondaryUserId] = useState('')
-  const [minute, setMinute] = useState('')
+  const [minute, setMinute] = useState(() =>
+    String(computeElapsedMinutes({ status, ...timestamps }))
+  )
   const [loading, setLoading] = useState(false)
 
   const isActive = ACTIVE_PHASES.includes(status)
@@ -74,7 +86,8 @@ export function EventLogger({ matchId, status, homeTeam, awayTeam, players }: Pr
     setLoading(false)
     if (!res.ok) { toast.error(data.error ?? 'Failed to log event'); return }
     toast.success('Event logged')
-    setType(''); setTeamId(''); setPrimaryUserId(''); setSecondaryUserId(''); setMinute('')
+    setType(''); setTeamId(''); setPrimaryUserId(''); setSecondaryUserId('')
+    setMinute(String(computeElapsedMinutes({ status, ...timestamps })))
     router.refresh()
   }
 
@@ -102,7 +115,7 @@ export function EventLogger({ matchId, status, homeTeam, awayTeam, players }: Pr
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Minute *</Label>
-            <Input type="number" min={0} max={200} placeholder="e.g. 23" value={minute} onChange={(e) => setMinute(e.target.value)} className="h-8 text-xs" />
+            <Input type="number" min={0} max={200} value={minute} onChange={(e) => setMinute(e.target.value)} className="h-8 text-xs" />
           </div>
         </div>
 
@@ -122,10 +135,10 @@ export function EventLogger({ matchId, status, homeTeam, awayTeam, players }: Pr
             <Label className="text-xs">
               {type === 'SUBSTITUTION' ? 'Player Out' : type === 'GOAL' || type === 'OWN_GOAL' || type === 'EXTRA_TIME_GOAL' ? 'Scorer' : 'Player'}
             </Label>
-            <Select value={primaryUserId} onValueChange={setPrimaryUserId}>
+            <Select value={primaryUserId || 'none'} onValueChange={(v) => setPrimaryUserId(v === 'none' ? '' : v)}>
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select player (optional)" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">— None —</SelectItem>
+                <SelectItem value="none">— None —</SelectItem>
                 {teamPlayers.map((p) => (
                   <SelectItem key={p.id} value={p.id}>#{p.jerseyNumber} {p.displayName} ({p.position})</SelectItem>
                 ))}
@@ -137,10 +150,10 @@ export function EventLogger({ matchId, status, homeTeam, awayTeam, players }: Pr
         {teamId && needsSecondary && (
           <div className="space-y-1">
             <Label className="text-xs">{secondaryLabel}</Label>
-            <Select value={secondaryUserId} onValueChange={setSecondaryUserId}>
+            <Select value={secondaryUserId || 'none'} onValueChange={(v) => setSecondaryUserId(v === 'none' ? '' : v)}>
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select player (optional)" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">— None —</SelectItem>
+                <SelectItem value="none">— None —</SelectItem>
                 {teamPlayers.map((p) => (
                   <SelectItem key={p.id} value={p.id}>#{p.jerseyNumber} {p.displayName} ({p.position})</SelectItem>
                 ))}

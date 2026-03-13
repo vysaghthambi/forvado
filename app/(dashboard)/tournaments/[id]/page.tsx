@@ -165,8 +165,13 @@ export default async function TournamentDetailPage({ params }: Props) {
               <div className="flex justify-end">
                 <CreateFixtureDialog
                   tournamentId={id}
+                  format={tournament.format}
                   teams={tournament.teams}
                   groups={tournament.groups}
+                  matchCount={tournament.matches.length}
+                  matchTime={tournament.matchTime}
+                  playingMembers={tournament.playingMembers}
+                  maxSubstitutes={tournament.maxSubstitutes}
                 />
               </div>
             )}

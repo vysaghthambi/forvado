@@ -74,14 +74,14 @@ export default async function MatchControlPage({ params }: Props) {
     displayName: m.user.displayName,
     avatarUrl: m.user.avatarUrl,
     position: m.user.position,
-    jerseyNumber: m.user.jerseyNumber,
+    jerseyNumber: m.jerseyNumber ?? m.user.jerseyNumber,
   }))
   const awayMembers = match.awayTeam.members.map((m) => ({
     userId: m.userId,
     displayName: m.user.displayName,
     avatarUrl: m.user.avatarUrl,
     position: m.user.position,
-    jerseyNumber: m.user.jerseyNumber,
+    jerseyNumber: m.jerseyNumber ?? m.user.jerseyNumber,
   }))
 
   // All players from both lineups for event/penalty logging
@@ -158,6 +158,13 @@ export default async function MatchControlPage({ params }: Props) {
             homeTeam={{ id: match.homeTeamId, name: match.homeTeam.name }}
             awayTeam={{ id: match.awayTeamId, name: match.awayTeam.name }}
             players={allLineupPlayers}
+            timestamps={{
+              matchTime:              match.matchTime,
+              firstHalfStartedAt:     match.firstHalfStartedAt?.toISOString()  ?? null,
+              secondHalfStartedAt:    match.secondHalfStartedAt?.toISOString() ?? null,
+              etFirstHalfStartedAt:   match.etFirstHalfStartedAt?.toISOString() ?? null,
+              etSecondHalfStartedAt:  match.etSecondHalfStartedAt?.toISOString() ?? null,
+            }}
           />
           <div className="rounded-xl border border-border/50 bg-card p-4">
             <h3 className="text-sm font-semibold mb-3">Event Log</h3>

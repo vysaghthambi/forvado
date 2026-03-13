@@ -1,15 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from 'sonner'
-import { Loader2, Plus, X } from 'lucide-react'
+import { Loader2, GripVertical } from 'lucide-react'
 
 interface TeamMember {
   userId: string
@@ -19,12 +16,12 @@ interface TeamMember {
   jerseyNumber: number | null
 }
 
-interface LineupEntry {
+interface LineupPlayer {
   userId: string
   displayName: string
-  jerseyNumber: string
+  jerseyNumber: number
   position: string
-  isSubstitute: boolean
+  section: 'playing' | 'bench' | 'none'
 }
 
 interface Props {
@@ -38,48 +35,94 @@ interface Props {
 }
 
 const POSITIONS = ['GK', 'DEF', 'MID', 'FWD']
+const POS_ORDER: Record<string, number> = { GK: 0, DEF: 1, MID: 2, FWD: 3 }
 
-export function LineupPanel({ matchId, teamId, teamName, members, playingMembers, maxSubstitutes, disabled }: Props) {
-  const router = useRouter()
-  const [lineup, setLineup] = useState<LineupEntry[]>([])
-  const [selectedUserId, setSelectedUserId] = useState('')
-  const [jerseyNumber, setJerseyNumber] = useState('')
-  const [position, setPosition] = useState('')
-  const [isSubstitute, setIsSubstitute] = useState(false)
-  const [loading, setLoading] = useState(false)
+function initPlayers(
+  members: TeamMember[],
+  playingMembers: number,
+  maxSubstitutes: number,
+): LineupPlayer[] {
+  const sorted = [...members].sort((a, b) => {
+    const pa = POS_ORDER[a.position ?? 'MID'] ?? 2
+    const pb = POS_ORDER[b.position ?? 'MID'] ?? 2
+    if (pa !== pb) return pa - pb
+    return a.displayName.localeCompare(b.displayName)
+  })
+  return sorted.map((m, i) => ({
+    userId:      m.userId,
+    displayName: m.displayName,
+    jerseyNumber: m.jerseyNumber ?? i + 1,
+    position:    m.position ?? 'MID',
+    section:
+      i < playingMembers                          ? 'playing'
+      : i < playingMembers + maxSubstitutes       ? 'bench'
+      : 'none',
+  }))
+}
 
-  const starters = lineup.filter((p) => !p.isSubstitute)
-  const bench = lineup.filter((p) => p.isSubstitute)
-  const addedIds = new Set(lineup.map((p) => p.userId))
-  const availableMembers = members.filter((m) => !addedIds.has(m.userId))
+export function LineupPanel({
+  matchId, teamId, teamName, members, playingMembers, maxSubstitutes, disabled,
+}: Props) {
+  const router  = useRouter()
+  const [players, setPlayers] = useState<LineupPlayer[]>(() =>
+    initPlayers(members, playingMembers, maxSubstitutes)
+  )
+  const [dragOver, setDragOver] = useState<'playing' | 'bench' | 'none' | null>(null)
+  const [loading, setLoading]   = useState(false)
+  const dragRef = useRef<{ userId: string; fromSection: 'playing' | 'bench' | 'none' } | null>(null)
 
-  function addPlayer() {
-    if (!selectedUserId || !jerseyNumber || !position) { toast.error('Select player, jersey number, and position'); return }
-    if (!isSubstitute && starters.length >= playingMembers) { toast.error(`Max ${playingMembers} starters`); return }
-    if (isSubstitute && bench.length >= maxSubstitutes) { toast.error(`Max ${maxSubstitutes} bench players`); return }
-    const member = members.find((m) => m.userId === selectedUserId)
-    if (!member) return
-    setLineup((prev) => [...prev, { userId: selectedUserId, displayName: member.displayName, jerseyNumber, position, isSubstitute }])
-    setSelectedUserId(''); setJerseyNumber(''); setPosition('')
+  const playing    = players.filter((p) => p.section === 'playing')
+  const bench      = players.filter((p) => p.section === 'bench')
+  const notPlaying = players.filter((p) => p.section === 'none')
+
+  function updatePlayer(userId: string, field: 'jerseyNumber' | 'position', value: string) {
+    setPlayers((prev) =>
+      prev.map((p) =>
+        p.userId === userId
+          ? { ...p, [field]: field === 'jerseyNumber' ? Number(value) : value }
+          : p
+      )
+    )
   }
 
-  function removePlayer(userId: string) {
-    setLineup((prev) => prev.filter((p) => p.userId !== userId))
+  function handleDrop(toSection: 'playing' | 'bench' | 'none') {
+    setDragOver(null)
+    if (!dragRef.current) return
+    const { userId, fromSection } = dragRef.current
+    dragRef.current = null
+    if (fromSection === toSection) return
+
+    if (toSection === 'playing') {
+      const currentCount = players.filter((p) => p.section === 'playing').length
+      const leavingPlaying = fromSection === 'playing'
+      if (!leavingPlaying && currentCount >= playingMembers) {
+        toast.warning(`Playing section is full (max ${playingMembers})`)
+        return
+      }
+    }
+
+    setPlayers((prev) =>
+      prev.map((p) => (p.userId === userId ? { ...p, section: toSection } : p))
+    )
   }
 
   async function submitLineup() {
-    if (lineup.length === 0) { toast.error('Add at least one player'); return }
+    if (playing.length !== playingMembers) {
+      toast.error(`Need exactly ${playingMembers} starters (currently ${playing.length})`)
+      return
+    }
     setLoading(true)
+    const submitting = players.filter((p) => p.section !== 'none')
     const res = await fetch(`/api/matches/${matchId}/lineup`, {
-      method: 'POST',
+      method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         teamId,
-        players: lineup.map((p) => ({
-          userId: p.userId,
-          jerseyNumber: parseInt(p.jerseyNumber),
-          position: p.position,
-          isSubstitute: p.isSubstitute,
+        players: submitting.map((p) => ({
+          userId:       p.userId,
+          jerseyNumber: p.jerseyNumber,
+          position:     p.position,
+          isSubstitute: p.section === 'bench',
         })),
       }),
     })
@@ -90,16 +133,92 @@ export function LineupPanel({ matchId, teamId, teamName, members, playingMembers
     router.refresh()
   }
 
-  function PlayerRow({ p, isBench }: { p: LineupEntry; isBench: boolean }) {
+  function Section({
+    title,
+    section,
+    items,
+    dimCount,
+  }: {
+    title: string
+    section: 'playing' | 'bench' | 'none'
+    items: LineupPlayer[]
+    dimCount?: boolean
+  }) {
+    const isOver = dragOver === section
+    const countLabel =
+      section === 'playing' ? `${items.length}/${playingMembers}`
+      : section === 'bench'  ? `${items.length}/${maxSubstitutes}`
+      : String(items.length)
+    const headerCls =
+      section === 'playing' && items.length < playingMembers
+        ? 'text-amber-500'
+        : 'text-muted-foreground'
+
     return (
-      <div className="flex items-center gap-2 rounded-lg border border-border/30 px-2.5 py-1.5">
-        <span className="text-xs text-muted-foreground w-6">#{p.jerseyNumber}</span>
-        <span className="text-sm flex-1 truncate">{p.displayName}</span>
-        <Badge variant="secondary" className="text-[10px] h-4 px-1">{p.position}</Badge>
-        {isBench && <Badge variant="outline" className="text-[10px] h-4 px-1 text-muted-foreground">SUB</Badge>}
-        <button onClick={() => removePlayer(p.userId)} className="text-muted-foreground hover:text-destructive ml-1">
-          <X className="h-3 w-3" />
-        </button>
+      <div
+        className={`rounded-lg border p-3 space-y-2 transition-colors ${isOver ? 'border-primary bg-primary/5' : 'border-border/50'}`}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(section) }}
+        onDragLeave={() => setDragOver(null)}
+        onDrop={() => handleDrop(section)}
+      >
+        <div className="flex items-center justify-between">
+          <p className={`text-xs font-medium uppercase tracking-wider ${headerCls}`}>{title}</p>
+          <span className={`text-xs ${dimCount ? 'text-muted-foreground' : headerCls}`}>{countLabel}</span>
+        </div>
+
+        {items.map((p) => (
+          <div
+            key={p.userId}
+            draggable={!disabled}
+            onDragStart={() => { dragRef.current = { userId: p.userId, fromSection: section } }}
+            className="flex items-center gap-2 rounded-md border border-border/30 bg-background px-2 py-1.5 cursor-grab active:cursor-grabbing select-none"
+          >
+            <GripVertical className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+
+            {disabled ? (
+              <span className="text-xs text-muted-foreground w-14">#{p.jerseyNumber}</span>
+            ) : (
+              <Input
+                type="number"
+                min={1}
+                max={99}
+                value={p.jerseyNumber}
+                onChange={(e) => updatePlayer(p.userId, 'jerseyNumber', e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                className="h-6 w-14 text-xs px-1"
+              />
+            )}
+
+            <span className="text-sm flex-1 truncate">{p.displayName}</span>
+
+            {disabled ? (
+              <span className="text-xs text-muted-foreground w-[72px]">{p.position}</span>
+            ) : (
+              <Select
+                value={p.position}
+                onValueChange={(v) => updatePlayer(p.userId, 'position', v)}
+              >
+                <SelectTrigger
+                  className="h-6 w-[72px] text-xs px-1"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {POSITIONS.map((pos) => (
+                    <SelectItem key={pos} value={pos}>{pos}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        ))}
+
+        {items.length === 0 && (
+          <p className="text-xs text-muted-foreground text-center py-2 italic">
+            Drag players here
+          </p>
+        )}
       </div>
     )
   }
@@ -108,76 +227,23 @@ export function LineupPanel({ matchId, teamId, teamName, members, playingMembers
     <div className="rounded-xl border border-border/50 bg-card p-5 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">{teamName} Lineup</h3>
-        <span className="text-xs text-muted-foreground">{starters.length}/{playingMembers} starters · {bench.length}/{maxSubstitutes} bench</span>
+        <span className="text-xs text-muted-foreground">{members.length} members</span>
       </div>
 
-      {/* Add player form */}
+      <Section title="Playing"      section="playing" items={playing} />
+      <Section title="Substitutes"  section="bench"   items={bench}  dimCount />
+      <Section title="Not Playing"  section="none"    items={notPlaying} dimCount />
+
       {!disabled && (
-        <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 items-end">
-          <div className="space-y-1">
-            <Label className="text-xs">Player</Label>
-            <Select value={selectedUserId} onValueChange={(v) => {
-              setSelectedUserId(v)
-              const m = members.find((x) => x.userId === v)
-              if (m) {
-                if (m.jerseyNumber) setJerseyNumber(String(m.jerseyNumber))
-                if (m.position) setPosition(m.position)
-              }
-            }}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
-              <SelectContent>
-                {availableMembers.map((m) => (
-                  <SelectItem key={m.userId} value={m.userId}>{m.displayName}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1 w-16">
-            <Label className="text-xs">Jersey</Label>
-            <Input type="number" min={1} max={99} placeholder="#" value={jerseyNumber} onChange={(e) => setJerseyNumber(e.target.value)} className="h-8 text-xs" />
-          </div>
-          <div className="space-y-1 w-20">
-            <Label className="text-xs">Position</Label>
-            <Select value={position} onValueChange={setPosition}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Pos" /></SelectTrigger>
-              <SelectContent>
-                {POSITIONS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1 w-16">
-            <Label className="text-xs">Role</Label>
-            <Select value={isSubstitute ? 'bench' : 'start'} onValueChange={(v) => setIsSubstitute(v === 'bench')}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="start">Start</SelectItem>
-                <SelectItem value="bench">Bench</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <Button size="icon" className="h-8 w-8 mt-5" onClick={addPlayer} disabled={!selectedUserId || !jerseyNumber || !position}>
-            <Plus className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      )}
-
-      {/* Player list */}
-      {starters.length > 0 && (
-        <div className="space-y-1">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider">Starting XI</p>
-          {starters.map((p) => <PlayerRow key={p.userId} p={p} isBench={false} />)}
-        </div>
-      )}
-      {bench.length > 0 && (
-        <div className="space-y-1">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider">Bench</p>
-          {bench.map((p) => <PlayerRow key={p.userId} p={p} isBench />)}
-        </div>
-      )}
-
-      {lineup.length > 0 && !disabled && (
-        <Button className="w-full" size="sm" onClick={submitLineup} disabled={loading}>
-          {loading ? <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />Submitting...</> : 'Submit Lineup'}
+        <Button
+          className="w-full"
+          size="sm"
+          onClick={submitLineup}
+          disabled={playing.length !== playingMembers || loading}
+        >
+          {loading
+            ? <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />Submitting...</>
+            : `Submit Lineup (${playing.length}/${playingMembers} starters)`}
         </Button>
       )}
     </div>
