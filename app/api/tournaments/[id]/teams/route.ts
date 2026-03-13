@@ -45,7 +45,7 @@ export async function POST(req: NextRequest, { params }: Props) {
     include: { _count: { select: { teams: true } } },
   })
   if (!tournament) return NextResponse.json({ error: 'Tournament not found' }, { status: 404 })
-  if (tournament.status !== 'REGISTRATION') {
+  if (user.role !== 'ADMIN' && tournament.status !== 'REGISTRATION') {
     return NextResponse.json({ error: 'Tournament is not open for registration' }, { status: 409 })
   }
   if (tournament._count.teams >= tournament.maxTeams) {

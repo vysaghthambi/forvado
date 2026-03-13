@@ -1,7 +1,7 @@
 import { requireUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
-import { canManageTournament } from '@/services/tournaments'
+import { canManageTournament, autoUpdateTournamentStatus } from '@/services/tournaments'
 import { calculateStandings, calculateGroupStandings } from '@/services/standings'
 import { StandingsTable } from '@/components/tournaments/standings-table'
 import { FixturesList } from '@/components/tournaments/fixtures-list'
@@ -73,6 +73,9 @@ export default async function TournamentDetailPage({ params }: Props) {
   if (!tournament) notFound()
   if (!tournament.isPublished && !(await canManageTournament(id, user.id, user.role))) notFound()
 
+  // Lazy auto-status transition (UPCOMING→ONGOING→COMPLETED based on dates)
+  const currentStatus = await autoUpdateTournamentStatus(id, tournament)
+
   const canManage = await canManageTournament(id, user.id, user.role)
   const isAdmin = user.role === 'ADMIN'
 
@@ -98,8 +101,8 @@ export default async function TournamentDetailPage({ params }: Props) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl font-bold truncate">{tournament.name}</h1>
-              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[tournament.status] ?? 'bg-muted'}`}>
-                {tournament.status.charAt(0) + tournament.status.slice(1).toLowerCase().replace('_', ' ')}
+              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[currentStatus] ?? 'bg-muted'}`}>
+                {currentStatus.charAt(0) + currentStatus.slice(1).toLowerCase().replace('_', ' ')}
               </span>
               {!tournament.isPublished && (
                 <Badge variant="outline" className="text-xs border-amber-500/40 text-amber-400">Draft</Badge>
@@ -179,11 +182,13 @@ export default async function TournamentDetailPage({ params }: Props) {
           <TabsContent value="manage" className="mt-4">
             <TournamentAdminPanel
               tournamentId={id}
-              status={tournament.status}
+              status={currentStatus}
               isPublished={tournament.isPublished}
               coordinators={tournament.coordinators}
               groups={tournament.groups}
               teams={tournament.teams}
+              maxTeams={tournament.maxTeams}
+              format={tournament.format}
               isAdmin={isAdmin}
             />
           </TabsContent>

@@ -14,6 +14,7 @@ const createSchema = z.object({
   matchTime: z.string().optional(),
   playingMembers: z.string().optional(),
   maxSubstitutes: z.string().optional(),
+  teamIds: z.array(z.string()).optional(),
 })
 
 export async function GET(req: NextRequest) {
@@ -52,20 +53,37 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: 'Invalid data', issues: parsed.error.issues }, { status: 400 })
 
   const d = parsed.data
-  const tournament = await prisma.tournament.create({
-    data: {
-      name: d.name,
-      description: d.description,
-      format: d.format,
-      startDate: new Date(d.startDate),
-      endDate: new Date(d.endDate),
-      venue: d.venue,
-      maxTeams: parseInt(d.maxTeams),
-      matchTime: d.matchTime ? parseInt(d.matchTime) : 90,
-      playingMembers: d.playingMembers ? parseInt(d.playingMembers) : 11,
-      maxSubstitutes: d.maxSubstitutes ? parseInt(d.maxSubstitutes) : 5,
-      createdById: user.id,
-    },
+  const maxTeamsInt = parseInt(d.maxTeams)
+
+  if (d.teamIds && d.teamIds.length !== maxTeamsInt) {
+    return NextResponse.json({ error: `Expected ${maxTeamsInt} teams, got ${d.teamIds.length}` }, { status: 400 })
+  }
+
+  const tournament = await prisma.$transaction(async (tx) => {
+    const t = await tx.tournament.create({
+      data: {
+        name: d.name,
+        description: d.description,
+        format: d.format,
+        startDate: new Date(d.startDate),
+        endDate: new Date(d.endDate),
+        venue: d.venue,
+        maxTeams: maxTeamsInt,
+        matchTime: d.matchTime ? parseInt(d.matchTime) : 90,
+        playingMembers: d.playingMembers ? parseInt(d.playingMembers) : 11,
+        maxSubstitutes: d.maxSubstitutes ? parseInt(d.maxSubstitutes) : 5,
+        createdById: user.id,
+      },
+    })
+
+    if (d.teamIds && d.teamIds.length > 0) {
+      await tx.tournamentTeam.createMany({
+        data: d.teamIds.map((teamId) => ({ tournamentId: t.id, teamId })),
+        skipDuplicates: true,
+      })
+    }
+
+    return t
   })
 
   return NextResponse.json({ tournament }, { status: 201 })

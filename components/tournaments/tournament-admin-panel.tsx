@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { Loader2, Plus, Trash2, Eye, EyeOff } from 'lucide-react'
+import { Loader2, Plus, Trash2, Eye, EyeOff, AlertTriangle, Search } from 'lucide-react'
 
 interface Coordinator {
   id: string
@@ -35,6 +35,11 @@ const STATUS_OPTIONS = [
   { value: 'COMPLETED', label: 'Completed' },
 ]
 
+interface AvailableTeam {
+  id: string
+  name: string
+}
+
 interface Props {
   tournamentId: string
   status: string
@@ -42,10 +47,12 @@ interface Props {
   coordinators: Coordinator[]
   groups: Group[]
   teams: RegisteredTeam[]
+  maxTeams: number
+  format: string
   isAdmin: boolean
 }
 
-export function TournamentAdminPanel({ tournamentId, status, isPublished, coordinators, groups, teams, isAdmin }: Props) {
+export function TournamentAdminPanel({ tournamentId, status, isPublished, coordinators, groups, teams, maxTeams, format, isAdmin }: Props) {
   const router = useRouter()
   const [loadingPublish, setLoadingPublish] = useState(false)
   const [loadingStatus, setLoadingStatus] = useState(false)
@@ -53,6 +60,48 @@ export function TournamentAdminPanel({ tournamentId, status, isPublished, coordi
   const [loadingGroup, setLoadingGroup] = useState(false)
   const [coordinatorUserId, setCoordinatorUserId] = useState('')
   const [loadingCoordinator, setLoadingCoordinator] = useState('')
+  const [availableTeams, setAvailableTeams] = useState<AvailableTeam[]>([])
+  const [teamsSearch, setTeamsSearch] = useState('')
+  const [loadingAddTeam, setLoadingAddTeam] = useState('')
+  const [loadingRemoveTeam, setLoadingRemoveTeam] = useState('')
+
+  const registeredIds = new Set(teams.map((t) => t.team.id))
+  const unassignedCount = format === 'GROUP_KNOCKOUT' ? teams.filter((t) => !t.group).length : 0
+
+  useEffect(() => {
+    fetch('/api/teams?limit=50')
+      .then((r) => r.json())
+      .then((d) => setAvailableTeams(d.teams ?? []))
+  }, [])
+
+  const addableTeams = availableTeams.filter(
+    (t) => !registeredIds.has(t.id) && t.name.toLowerCase().includes(teamsSearch.toLowerCase())
+  )
+
+  async function addTeam(teamId: string) {
+    setLoadingAddTeam(teamId)
+    const res = await fetch(`/api/tournaments/${tournamentId}/teams`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ teamId }),
+    })
+    const data = await res.json()
+    setLoadingAddTeam('')
+    if (!res.ok) { toast.error(data.error ?? 'Failed'); return }
+    toast.success('Team added')
+    setTeamsSearch('')
+    router.refresh()
+  }
+
+  async function removeTeam(teamId: string) {
+    setLoadingRemoveTeam(teamId)
+    const res = await fetch(`/api/tournaments/${tournamentId}/teams/${teamId}`, { method: 'DELETE' })
+    const data = await res.json()
+    setLoadingRemoveTeam('')
+    if (!res.ok) { toast.error(data.error ?? 'Failed'); return }
+    toast.success('Team removed')
+    router.refresh()
+  }
 
   async function togglePublish() {
     setLoadingPublish(true)
@@ -184,6 +233,86 @@ export function TournamentAdminPanel({ tournamentId, status, isPublished, coordi
               )}
             </Button>
           </div>
+        </div>
+      )}
+
+      {/* Teams */}
+      {isAdmin && (
+        <div className="rounded-xl border border-border/50 bg-card p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Teams</h3>
+            <div className="flex items-center gap-2">
+              {teams.length !== maxTeams && (
+                <Badge variant="outline" className="text-xs border-amber-500/40 text-amber-400 gap-1">
+                  <AlertTriangle className="h-3 w-3" />{teams.length}/{maxTeams}
+                </Badge>
+              )}
+              {teams.length === maxTeams && (
+                <span className="text-xs text-muted-foreground">{teams.length}/{maxTeams} teams</span>
+              )}
+              {format === 'GROUP_KNOCKOUT' && unassignedCount > 0 && (
+                <Badge variant="outline" className="text-xs border-amber-500/40 text-amber-400 gap-1">
+                  <AlertTriangle className="h-3 w-3" />{unassignedCount} unassigned
+                </Badge>
+              )}
+            </div>
+          </div>
+
+          {teams.length > 0 && (
+            <div className="space-y-1">
+              {teams.map(({ team, group }) => (
+                <div key={team.id} className="flex items-center gap-2 rounded-lg border border-border/30 px-3 py-2">
+                  <span className="text-sm flex-1 truncate">{team.name}</span>
+                  {group && <span className="text-xs text-muted-foreground">Group {group.name}</span>}
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6 text-destructive hover:text-destructive"
+                    onClick={() => removeTeam(team.id)}
+                    disabled={loadingRemoveTeam === team.id}
+                  >
+                    {loadingRemoveTeam === team.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {teams.length < maxTeams && (
+            <div className="space-y-2">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Search teams to add..."
+                  value={teamsSearch}
+                  onChange={(e) => setTeamsSearch(e.target.value)}
+                  className="pl-8 h-7 text-xs"
+                />
+              </div>
+              {teamsSearch && (
+                <div className="space-y-1 max-h-40 overflow-y-auto">
+                  {addableTeams.length === 0 ? (
+                    <p className="text-xs text-muted-foreground px-1">No teams found</p>
+                  ) : (
+                    addableTeams.map((t) => (
+                      <div key={t.id} className="flex items-center justify-between rounded border border-border/30 px-2 py-1.5">
+                        <span className="text-xs">{t.name}</span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-2 text-xs"
+                          onClick={() => addTeam(t.id)}
+                          disabled={loadingAddTeam === t.id}
+                        >
+                          {loadingAddTeam === t.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

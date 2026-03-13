@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import type { Role } from '@prisma/client'
+import type { Role, TournamentStatus } from '@prisma/client'
 
 export async function getTournamentWithDetails(id: string) {
   return prisma.tournament.findUnique({
@@ -38,4 +38,27 @@ export async function canManageTournament(
   if (userRole === 'ADMIN') return true
   if (userRole === 'COORDINATOR') return isTournamentCoordinator(tournamentId, userId)
   return false
+}
+
+export async function autoUpdateTournamentStatus(
+  id: string,
+  tournament: { status: TournamentStatus; startDate: Date; endDate: Date; isPublished: boolean }
+): Promise<TournamentStatus> {
+  if (!tournament.isPublished) return tournament.status
+
+  const today = new Date()
+  let newStatus: TournamentStatus | null = null
+
+  if (tournament.status === 'UPCOMING' && today >= tournament.startDate) {
+    newStatus = 'ONGOING'
+  } else if (tournament.status === 'ONGOING' && today > tournament.endDate) {
+    newStatus = 'COMPLETED'
+  }
+
+  if (newStatus) {
+    await prisma.tournament.update({ where: { id }, data: { status: newStatus } })
+    return newStatus
+  }
+
+  return tournament.status
 }
