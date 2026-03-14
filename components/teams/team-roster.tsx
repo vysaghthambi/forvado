@@ -4,9 +4,9 @@ import { useRouter } from 'next/navigation'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { UserMinus } from 'lucide-react'
+import { UserMinus, Star } from 'lucide-react'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
 interface Member {
   userId: string
@@ -15,8 +15,10 @@ interface Member {
   user: { id: string; displayName: string; avatarUrl: string | null; position: string | null }
 }
 
-const ROLE_LABELS: Record<string, string> = { CAPTAIN: 'Captain', VICE_CAPTAIN: 'Vice Captain', PLAYER: 'Player' }
 const POSITION_LABELS: Record<string, string> = { GK: 'GK', DEF: 'DEF', MID: 'MID', FWD: 'FWD' }
+
+// Position sort order
+const POS_ORDER = ['GK', 'DEF', 'MID', 'FWD']
 
 interface Props {
   teamId: string
@@ -37,70 +39,91 @@ export function TeamRoster({ teamId, members, isOwner, ownerId }: Props) {
     router.refresh()
   }
 
+  // Sort: captain first, then by position, then by jersey number
+  const sorted = [...members].sort((a, b) => {
+    if (a.role === 'CAPTAIN') return -1
+    if (b.role === 'CAPTAIN') return 1
+    if (a.role === 'VICE_CAPTAIN' && b.role !== 'CAPTAIN') return -1
+    if (b.role === 'VICE_CAPTAIN' && a.role !== 'CAPTAIN') return 1
+    const pa = POS_ORDER.indexOf(a.user.position ?? '') ?? 99
+    const pb = POS_ORDER.indexOf(b.user.position ?? '') ?? 99
+    if (pa !== pb) return pa - pb
+    return (a.jerseyNumber ?? 99) - (b.jerseyNumber ?? 99)
+  })
+
+  if (members.length === 0) {
+    return (
+      <div className="rounded-xl border border-border/50 bg-card py-10 text-center">
+        <p className="text-sm text-muted-foreground">No members yet.</p>
+      </div>
+    )
+  }
+
   return (
-    <div className="rounded-xl border border-border/50 overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow className="hover:bg-transparent border-border/50">
-            <TableHead className="w-12 text-center">#</TableHead>
-            <TableHead>Player</TableHead>
-            <TableHead className="hidden sm:table-cell">Position</TableHead>
-            <TableHead className="hidden sm:table-cell">Role</TableHead>
-            {isOwner && <TableHead className="w-12" />}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {members.map((m) => (
-            <TableRow key={m.userId} className="border-border/50 hover:bg-muted/20">
-              <TableCell className="text-center font-mono text-muted-foreground text-sm">
-                {m.jerseyNumber ?? '—'}
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2.5">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={m.user.avatarUrl ?? ''} />
-                    <AvatarFallback className="text-xs">{m.user.displayName.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <span className="font-medium text-sm">{m.user.displayName}</span>
-                </div>
-              </TableCell>
-              <TableCell className="hidden sm:table-cell">
-                {m.user.position ? (
-                  <Badge variant="outline" className="text-xs border-border/60">
-                    {POSITION_LABELS[m.user.position]}
-                  </Badge>
-                ) : (
-                  <span className="text-muted-foreground text-sm">—</span>
-                )}
-              </TableCell>
-              <TableCell className="hidden sm:table-cell">
-                <span className="text-sm text-muted-foreground">{ROLE_LABELS[m.role]}</span>
-              </TableCell>
-              {isOwner && (
-                <TableCell>
-                  {m.userId !== ownerId && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                      onClick={() => removeMember(m.userId, m.user.displayName)}
-                    >
-                      <UserMinus className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                </TableCell>
-              )}
-            </TableRow>
-          ))}
-          {members.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={isOwner ? 5 : 4} className="py-8 text-center text-muted-foreground text-sm">
-                No members yet.
-              </TableCell>
-            </TableRow>
+    <div className="rounded-xl border border-border/50 bg-card overflow-hidden">
+      {sorted.map((m, i) => (
+        <div
+          key={m.userId}
+          className={cn(
+            'flex items-center gap-3 px-4 py-3 hover:bg-muted/20 transition-colors',
+            i < sorted.length - 1 && 'border-b border-border/30'
           )}
-        </TableBody>
-      </Table>
+        >
+          {/* Jersey number circle */}
+          <div
+            className={cn(
+              'h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0',
+              m.role === 'CAPTAIN'
+                ? 'bg-primary text-primary-foreground'
+                : m.role === 'VICE_CAPTAIN'
+                ? 'bg-primary/20 text-primary'
+                : 'bg-muted text-muted-foreground'
+            )}
+          >
+            {m.jerseyNumber ?? '—'}
+          </div>
+
+          {/* Avatar */}
+          <Avatar className="h-8 w-8 shrink-0">
+            <AvatarImage src={m.user.avatarUrl ?? ''} />
+            <AvatarFallback className="text-xs">{m.user.displayName.charAt(0)}</AvatarFallback>
+          </Avatar>
+
+          {/* Name + position */}
+          <div className="flex-1 min-w-0">
+            <span className="text-sm font-semibold">{m.user.displayName}</span>
+            {m.user.position && (
+              <span className="ml-2 text-xs text-muted-foreground">
+                {POSITION_LABELS[m.user.position] ?? m.user.position}
+              </span>
+            )}
+          </div>
+
+          {/* Role badge */}
+          {m.role === 'CAPTAIN' && (
+            <span className="hidden sm:flex items-center gap-1 text-xs font-semibold text-amber-400">
+              <Star className="h-3 w-3 fill-amber-400" /> Captain
+            </span>
+          )}
+          {m.role === 'VICE_CAPTAIN' && (
+            <span className="hidden sm:flex items-center gap-1 text-xs font-medium text-muted-foreground">
+              <Star className="h-3 w-3" /> Vice Cap
+            </span>
+          )}
+
+          {/* Remove button (owner only, can't remove yourself if you're owner) */}
+          {isOwner && m.userId !== ownerId && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
+              onClick={() => removeMember(m.userId, m.user.displayName)}
+            >
+              <UserMinus className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+      ))}
     </div>
   )
 }

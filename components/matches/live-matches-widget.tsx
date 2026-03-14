@@ -28,38 +28,41 @@ interface LiveMatch {
   tournament: { id: string; name: string }
 }
 
-const LIVE_STATUSES = ['FIRST_HALF', 'HALF_TIME', 'SECOND_HALF', 'EXTRA_TIME_FIRST_HALF', 'EXTRA_TIME_HALF_TIME', 'EXTRA_TIME_SECOND_HALF', 'PENALTY_SHOOTOUT']
-
 function LiveMatchRow({ match }: { match: LiveMatch }) {
   const { display, isLive } = useMatchTimer(match)
+
   return (
     <Link href={`/matches/${match.id}`} className="block">
-      <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-card px-4 py-3 hover:border-border transition-colors">
+      <div className="flex items-center gap-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors px-1">
+        {/* Home */}
         <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
-          <span className="text-sm font-medium truncate text-right">{match.homeTeam.name}</span>
-          <Avatar className="h-7 w-7 shrink-0">
+          <span className="text-sm font-semibold truncate text-right">{match.homeTeam.name}</span>
+          <Avatar className="h-6 w-6 shrink-0">
             <AvatarImage src={match.homeTeam.badgeUrl ?? ''} />
-            <AvatarFallback className="text-xs">{match.homeTeam.name.charAt(0)}</AvatarFallback>
+            <AvatarFallback className="text-[10px]">{match.homeTeam.name.charAt(0)}</AvatarFallback>
           </Avatar>
         </div>
 
-        <div className="flex flex-col items-center shrink-0 w-24">
-          <span className="text-base font-black tabular-nums">{match.homeScore} – {match.awayScore}</span>
+        {/* Score + time */}
+        <div className="flex flex-col items-center shrink-0 w-20">
+          <span className="text-base font-black tabular-nums">
+            {match.homeScore} – {match.awayScore}
+          </span>
           <div className="flex items-center gap-1">
             {isLive && <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />}
-            <span className={cn('text-[10px] font-semibold uppercase', isLive ? 'text-green-400' : 'text-muted-foreground')}>
+            <span className={cn('text-[10px] font-bold uppercase', isLive ? 'text-green-400' : 'text-muted-foreground')}>
               {display}
             </span>
           </div>
-          <span className="text-[9px] text-muted-foreground truncate max-w-[5rem] text-center">{match.tournament.name}</span>
         </div>
 
+        {/* Away */}
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          <Avatar className="h-7 w-7 shrink-0">
+          <Avatar className="h-6 w-6 shrink-0">
             <AvatarImage src={match.awayTeam.badgeUrl ?? ''} />
-            <AvatarFallback className="text-xs">{match.awayTeam.name.charAt(0)}</AvatarFallback>
+            <AvatarFallback className="text-[10px]">{match.awayTeam.name.charAt(0)}</AvatarFallback>
           </Avatar>
-          <span className="text-sm font-medium truncate">{match.awayTeam.name}</span>
+          <span className="text-sm font-semibold truncate">{match.awayTeam.name}</span>
         </div>
       </div>
     </Link>
@@ -78,16 +81,11 @@ export function LiveMatchesWidget() {
 
   useEffect(() => { fetchLive() }, [fetchLive])
 
-  // Subscribe to any match status changes
   useEffect(() => {
     const supabase = createClient()
     const channel = supabase
       .channel('live-matches-widget')
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'matches',
-      }, fetchLive)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'matches' }, fetchLive)
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [fetchLive])
@@ -95,13 +93,18 @@ export function LiveMatchesWidget() {
   if (matches.length === 0) return null
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
+    <div className="rounded-xl border border-green-500/25 bg-gradient-to-br from-green-500/10 to-green-500/5 p-4">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-3">
         <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-green-400">Live Now</h2>
+        <span className="text-xs font-bold uppercase tracking-widest text-green-400">Live Now</span>
       </div>
-      <div className="space-y-2">
-        {matches.map((m) => <LiveMatchRow key={m.id} match={m} />)}
+
+      {/* Matches */}
+      <div className="divide-y divide-green-500/10">
+        {matches.map((m) => (
+          <LiveMatchRow key={m.id} match={m} />
+        ))}
       </div>
     </div>
   )

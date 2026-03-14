@@ -149,7 +149,7 @@ export default async function TournamentDetailPage({ params }: Props) {
             {tournament.format === 'GROUP_KNOCKOUT' && groupStandings && (
               <div className="space-y-6">
                 {groupStandings.map((g) => (
-                  <StandingsTable key={g.groupId} rows={g.rows} title={`Group ${g.groupName}`} />
+                  <StandingsTable key={g.groupId} rows={g.rows} title={`Group ${g.groupName}`} promotionSpots={2} />
                 ))}
                 {groupStandings.length === 0 && (
                   <p className="text-center text-sm text-muted-foreground py-8">No groups configured yet.</p>
