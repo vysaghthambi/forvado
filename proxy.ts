@@ -4,7 +4,7 @@ import { updateSession } from '@/lib/supabase/middleware'
 // Public routes — no auth required
 const PUBLIC_PATHS = ['/login']
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Static assets and auth callback — always pass through
