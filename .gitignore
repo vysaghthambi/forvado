@@ -40,3 +40,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .~lock.*
+public/sw.js
+public/workbox-*.js
+scripts/generate-icons.mjs
+public/swe-worker-*.js
