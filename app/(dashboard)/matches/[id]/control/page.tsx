@@ -8,6 +8,7 @@ import { EventLogger } from '@/components/matches/event-logger'
 import { LineupPanel } from '@/components/matches/lineup-panel'
 import { MatchTimeline } from '@/components/matches/match-timeline'
 import { PenaltyTracker } from '@/components/matches/penalty-tracker'
+import { PlayerOfMatch } from '@/components/matches/player-of-match'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Link from 'next/link'
@@ -42,6 +43,7 @@ export default async function MatchControlPage({ params }: Props) {
         },
       },
       tournament: { select: { id: true, name: true } },
+      playerOfMatch: { select: { id: true, displayName: true } },
       group: { select: { id: true, name: true } },
       events: {
         include: {
@@ -55,6 +57,7 @@ export default async function MatchControlPage({ params }: Props) {
         include: {
           user: { select: { id: true, displayName: true, avatarUrl: true } },
         },
+        orderBy: [{ isSubstitute: 'asc' }, { jerseyNumber: 'asc' }],
       },
       penalties: {
         include: {
@@ -143,6 +146,17 @@ export default async function MatchControlPage({ params }: Props) {
       {/* Phase Control */}
       <PhaseControl matchId={id} status={match.status} />
 
+      {/* Player of the Match */}
+      {match.status === 'COMPLETED' && (
+        <PlayerOfMatch
+          matchId={id}
+          currentPlayerId={match.playerOfMatchId ?? null}
+          players={allLineupPlayers.map((p) => ({ id: p.id, displayName: p.displayName, jerseyNumber: p.jerseyNumber, teamId: p.teamId }))}
+          homeTeam={{ id: match.homeTeamId, name: match.homeTeam.name }}
+          awayTeam={{ id: match.awayTeamId, name: match.awayTeam.name }}
+        />
+      )}
+
       {/* Tabs */}
       <Tabs defaultValue="events">
         <TabsList className={`grid w-full ${isPSO ? 'grid-cols-3' : 'grid-cols-2'}`}>
@@ -173,6 +187,10 @@ export default async function MatchControlPage({ params }: Props) {
               homeTeamId={match.homeTeamId}
               initialEvents={match.events}
               canDelete={true}
+              canEdit={true}
+              homeTeam={{ id: match.homeTeamId, name: match.homeTeam.name }}
+              awayTeam={{ id: match.awayTeamId, name: match.awayTeam.name }}
+              players={allLineupPlayers}
             />
           </div>
         </TabsContent>

@@ -162,6 +162,8 @@ export function CreateFixtureDialog({
               value={matchNumber}
               onChange={(e) => setMatchNumber(e.target.value)}
               className="w-28"
+              autoFocus={false}
+              tabIndex={-1}
             />
           </div>
 

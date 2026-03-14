@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
-import { ArrowLeft, Settings } from 'lucide-react'
+import { ArrowLeft, Settings, Star } from 'lucide-react'
 import { format } from 'date-fns'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -34,6 +34,7 @@ export default async function MatchPage({ params }: Props) {
       homeTeam: { select: { id: true, name: true, badgeUrl: true } },
       awayTeam: { select: { id: true, name: true, badgeUrl: true } },
       tournament: { select: { id: true, name: true } },
+      playerOfMatch: { select: { id: true, displayName: true } },
       group: { select: { id: true, name: true } },
       events: {
         include: {
@@ -132,6 +133,17 @@ export default async function MatchPage({ params }: Props) {
         homeTeam: match.homeTeam,
         awayTeam: match.awayTeam,
       }} />
+
+      {/* Player of the Match */}
+      {match.playerOfMatch && (
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 flex items-center gap-3">
+          <Star className="h-4 w-4 text-amber-400 shrink-0" />
+          <div>
+            <p className="text-xs text-amber-400 font-medium">Player of the Match</p>
+            <p className="text-sm font-semibold">{match.playerOfMatch.displayName}</p>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <Tabs defaultValue="events">

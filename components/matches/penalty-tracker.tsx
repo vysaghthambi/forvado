@@ -126,10 +126,10 @@ export function PenaltyTracker({ matchId, status, homeTeam, awayTeam, players, i
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Player</Label>
-              <Select value={userId} onValueChange={setUserId} disabled={!teamId}>
+              <Select value={userId || 'none'} onValueChange={(v) => setUserId(v === 'none' ? '' : v)} disabled={!teamId}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Optional" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">— Unknown —</SelectItem>
+                  <SelectItem value="none">— Unknown —</SelectItem>
                   {teamPlayers.map((p) => (
                     <SelectItem key={p.id} value={p.id}>#{p.jerseyNumber} {p.displayName}</SelectItem>
                   ))}

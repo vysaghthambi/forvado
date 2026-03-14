@@ -113,6 +113,7 @@ model User {
   matchEventsCreated   MatchEvent[]           @relation("EventCreator")
   penaltyKicks         PenaltyShootout[]      @relation("PenaltyKicker")
   penaltyKicksCreated  PenaltyShootout[]      @relation("PenaltyCreator")
+  playerOfMatchAwards  Match[]                @relation("PlayerOfMatch")
   notifications        Notification[]
 
   @@map("users")
@@ -285,17 +286,20 @@ model Match {
   penaltyStartedAt         DateTime?
   completedAt              DateTime?
 
+  playerOfMatchId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relations
-  tournament Tournament      @relation(fields: [tournamentId], references: [id])
-  homeTeam   Team            @relation("HomeTeam", fields: [homeTeamId], references: [id])
-  awayTeam   Team            @relation("AwayTeam", fields: [awayTeamId], references: [id])
-  group      TournamentGroup? @relation(fields: [groupId], references: [id])
-  lineups    MatchLineup[]
-  events     MatchEvent[]
-  penalties  PenaltyShootout[]
+  tournament    Tournament       @relation(fields: [tournamentId], references: [id])
+  homeTeam      Team             @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam      Team             @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  group         TournamentGroup? @relation(fields: [groupId], references: [id])
+  playerOfMatch User?            @relation("PlayerOfMatch", fields: [playerOfMatchId], references: [id])
+  lineups       MatchLineup[]
+  events        MatchEvent[]
+  penalties     PenaltyShootout[]
 
   @@unique([tournamentId, matchOrder])
   @@map("matches")

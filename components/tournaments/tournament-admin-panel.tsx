@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -28,10 +28,9 @@ interface RegisteredTeam {
 }
 
 const STATUS_OPTIONS = [
-  { value: 'DRAFT', label: 'Draft' },
-  { value: 'REGISTRATION', label: 'Registration' },
-  { value: 'UPCOMING', label: 'Upcoming' },
-  { value: 'ONGOING', label: 'Ongoing' },
+  { value: 'DRAFT',     label: 'Draft' },
+  { value: 'UPCOMING',  label: 'Upcoming' },
+  { value: 'ONGOING',   label: 'Ongoing' },
   { value: 'COMPLETED', label: 'Completed' },
 ]
 
@@ -60,6 +59,10 @@ export function TournamentAdminPanel({ tournamentId, status, isPublished, coordi
   const [loadingGroup, setLoadingGroup] = useState(false)
   const [coordinatorUserId, setCoordinatorUserId] = useState('')
   const [loadingCoordinator, setLoadingCoordinator] = useState('')
+  const [coordSearch, setCoordSearch] = useState('')
+  const [coordResults, setCoordResults] = useState<{ id: string; displayName: string; email: string }[]>([])
+  const [coordSearching, setCoordSearching] = useState(false)
+  const coordDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [availableTeams, setAvailableTeams] = useState<AvailableTeam[]>([])
   const [teamsSearch, setTeamsSearch] = useState('')
   const [loadingAddTeam, setLoadingAddTeam] = useState('')
@@ -194,7 +197,29 @@ export function TournamentAdminPanel({ tournamentId, status, isPublished, coordi
     if (!res.ok) { toast.error(data.error ?? 'Failed'); return }
     toast.success('Coordinator assigned')
     setCoordinatorUserId('')
+    setCoordSearch('')
+    setCoordResults([])
     router.refresh()
+  }
+
+  function handleCoordSearch(q: string) {
+    setCoordSearch(q)
+    setCoordinatorUserId('')
+    if (coordDebounce.current) clearTimeout(coordDebounce.current)
+    if (q.length < 2) { setCoordResults([]); return }
+    coordDebounce.current = setTimeout(async () => {
+      setCoordSearching(true)
+      const res = await fetch(`/api/users/search?q=${encodeURIComponent(q)}`)
+      const data = await res.json()
+      setCoordSearching(false)
+      setCoordResults(data.users ?? [])
+    }, 300)
+  }
+
+  function selectCoordUser(u: { id: string; displayName: string; email: string }) {
+    setCoordinatorUserId(u.id)
+    setCoordSearch(u.displayName)
+    setCoordResults([])
   }
 
   return (
@@ -358,12 +383,12 @@ export function TournamentAdminPanel({ tournamentId, status, isPublished, coordi
             {teams.map(({ team, group }) => (
               <div key={team.id} className="flex items-center gap-3">
                 <span className="text-sm flex-1 truncate">{team.name}</span>
-                <Select value={group?.id ?? ''} onValueChange={(v) => assignToGroup(team.id, v)}>
+                <Select value={group?.id ?? 'none'} onValueChange={(v) => assignToGroup(team.id, v === 'none' ? '' : v)}>
                   <SelectTrigger className="w-36 h-7 text-xs">
                     <SelectValue placeholder="No group" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No group</SelectItem>
+                    <SelectItem value="none">No group</SelectItem>
                     {groups.map((g) => (
                       <SelectItem key={g.id} value={g.id}>Group {g.name}</SelectItem>
                     ))}
@@ -379,16 +404,47 @@ export function TournamentAdminPanel({ tournamentId, status, isPublished, coordi
       {isAdmin && (
         <div className="rounded-xl border border-border/50 bg-card p-5 space-y-4">
           <h3 className="text-sm font-semibold">Coordinators</h3>
-          <div className="flex gap-2">
-            <Input
-              placeholder="User ID to assign as coordinator"
-              value={coordinatorUserId}
-              onChange={(e) => setCoordinatorUserId(e.target.value)}
-              className="h-8 text-sm"
-            />
-            <Button size="sm" onClick={addCoordinator} disabled={loadingCoordinator === 'adding' || !coordinatorUserId.trim()}>
-              {loadingCoordinator === 'adding' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-            </Button>
+          <div className="space-y-1">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name or email…"
+                  value={coordSearch}
+                  onChange={(e) => handleCoordSearch(e.target.value)}
+                  className="pl-8 h-8 text-sm"
+                />
+                {coordSearching && (
+                  <Loader2 className="absolute right-2.5 top-2 h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                )}
+              </div>
+              <Button
+                size="sm"
+                onClick={addCoordinator}
+                disabled={loadingCoordinator === 'adding' || !coordinatorUserId}
+              >
+                {loadingCoordinator === 'adding'
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  : <Plus className="h-3.5 w-3.5" />}
+              </Button>
+            </div>
+            {coordResults.length > 0 && (
+              <div className="rounded-md border border-border/50 bg-popover shadow-sm overflow-hidden">
+                {coordResults.map((u) => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/50 transition-colors border-b border-border/30 last:border-0"
+                    onClick={() => selectCoordUser(u)}
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{u.displayName}</p>
+                      <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           {coordinators.length === 0 ? (
             <p className="text-xs text-muted-foreground">No coordinators assigned.</p>

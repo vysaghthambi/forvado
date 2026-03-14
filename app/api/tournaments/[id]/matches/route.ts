@@ -89,6 +89,20 @@ export async function POST(req: NextRequest, { params }: Props) {
     matchOrder = (lastMatch?.matchOrder ?? 0) + 1
   }
 
+  // Check matchOrder uniqueness within this tournament
+  if (matchOrder) {
+    const conflict = await prisma.match.findUnique({
+      where: { tournamentId_matchOrder: { tournamentId: id, matchOrder } },
+      select: { id: true },
+    })
+    if (conflict) {
+      return NextResponse.json(
+        { error: `Match #${matchOrder} already exists in this tournament. Use a different number.` },
+        { status: 409 },
+      )
+    }
+  }
+
   const match = await prisma.match.create({
     data: {
       tournamentId: id,

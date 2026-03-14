@@ -13,7 +13,7 @@ export default async function TournamentsPage() {
   const tournaments = await prisma.tournament.findMany({
     where: {
       deletedAt: null,
-      ...(user.role !== 'ADMIN' && user.role !== 'COORDINATOR' ? { isPublished: true } : {}),
+      ...(user.role !== 'ADMIN' ? { isPublished: true, status: { not: 'DRAFT' } } : {}),
     },
     include: {
       createdBy: { select: { id: true, displayName: true } },
@@ -64,7 +64,7 @@ export default async function TournamentsPage() {
           <Section title="Ongoing" items={ongoing} />
           <Section title="Upcoming" items={upcoming} />
           <Section title="Completed" items={completed} />
-          {(user.role === 'ADMIN' || user.role === 'COORDINATOR') && (
+          {user.role === 'ADMIN' && (
             <Section title="Drafts" items={drafts} />
           )}
         </div>

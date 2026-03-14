@@ -1,33 +1,23 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireTeamOwner } from '@/lib/rbac'
+import { getSessionUser } from '@/lib/rbac'
 
-export async function GET(request: Request) {
-  const { error } = await requireTeamOwner()
+export async function GET(req: NextRequest) {
+  const { error } = await getSessionUser()
   if (error) return error
 
-  const { searchParams } = new URL(request.url)
-  const q = searchParams.get('q')?.trim()
-
-  if (!q || q.length < 2) {
-    return NextResponse.json({ users: [] })
-  }
+  const q = new URL(req.url).searchParams.get('q')?.trim() ?? ''
+  if (q.length < 2) return NextResponse.json({ users: [] })
 
   const users = await prisma.user.findMany({
     where: {
+      profileComplete: true,
       OR: [
         { displayName: { contains: q, mode: 'insensitive' } },
         { email: { contains: q, mode: 'insensitive' } },
       ],
-      profileComplete: true,
     },
-    select: {
-      id: true,
-      displayName: true,
-      avatarUrl: true,
-      position: true,
-      jerseyNumber: true,
-    },
+    select: { id: true, displayName: true, email: true, avatarUrl: true, role: true },
     take: 10,
     orderBy: { displayName: 'asc' },
   })

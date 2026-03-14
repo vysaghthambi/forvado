@@ -88,10 +88,10 @@ export function EditProfileForm({ user }: Props) {
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label>Position</Label>
-          <Select value={position} onValueChange={setPosition}>
+          <Select value={position || 'none'} onValueChange={(v) => setPosition(v === 'none' ? '' : v)}>
             <SelectTrigger><SelectValue placeholder="Select position" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="">— None —</SelectItem>
+              <SelectItem value="none">— None —</SelectItem>
               {Object.entries(POSITION_LABELS).map(([val, label]) => (
                 <SelectItem key={val} value={val}>{label}</SelectItem>
               ))}

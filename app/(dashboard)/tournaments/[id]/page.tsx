@@ -104,8 +104,8 @@ export default async function TournamentDetailPage({ params }: Props) {
               <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[currentStatus] ?? 'bg-muted'}`}>
                 {currentStatus.charAt(0) + currentStatus.slice(1).toLowerCase().replace('_', ' ')}
               </span>
-              {!tournament.isPublished && (
-                <Badge variant="outline" className="text-xs border-amber-500/40 text-amber-400">Draft</Badge>
+              {!tournament.isPublished && currentStatus !== 'DRAFT' && (
+                <Badge variant="outline" className="text-xs border-amber-500/40 text-amber-400">Unpublished</Badge>
               )}
             </div>
             {tournament.description && (
