@@ -41,6 +41,24 @@ const EVENT_TYPES = [
   { value: 'SUBSTITUTION',    label: '🔄 Substitution' },
 ]
 
+function getPhase(minute: number): string {
+  if (minute <= 45) return 'First Half'
+  if (minute <= 90) return 'Second Half'
+  return 'Extra Time'
+}
+
+function PhaseDivider({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-3 py-2 my-1">
+      <div className="flex-1 h-px bg-border/50" />
+      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-2">
+        {label}
+      </span>
+      <div className="flex-1 h-px bg-border/50" />
+    </div>
+  )
+}
+
 interface EventUser { id: string; displayName: string }
 interface EventTeam { id: string; name: string }
 
@@ -89,7 +107,6 @@ export function MatchTimeline({
   const [editSecondary, setEditSecondary] = useState('')
   const [editLoading, setEditLoading]     = useState(false)
 
-  // Sync when server re-renders (after router.refresh())
   useEffect(() => { setEvents(initialEvents) }, [initialEvents])
 
   const refresh = useCallback(async () => {
@@ -160,59 +177,81 @@ export function MatchTimeline({
     return <p className="text-center text-sm text-muted-foreground py-8">No events yet.</p>
   }
 
+  // Render events with phase dividers
+  let lastPhase = ''
+  const rows: React.ReactNode[] = []
+
+  events.forEach((e) => {
+    const phase = getPhase(e.minute)
+    if (phase !== lastPhase) {
+      rows.push(<PhaseDivider key={`divider-${phase}-${e.id}`} label={phase} />)
+      lastPhase = phase
+    }
+
+    const isHome = e.team.id === homeTeamId
+    rows.push(
+      <div
+        key={e.id}
+        className={cn(
+          'group flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-muted/20 transition-colors',
+          isHome ? 'flex-row' : 'flex-row-reverse'
+        )}
+      >
+        <span className="text-lg shrink-0">{EVENT_ICONS[e.type] ?? '•'}</span>
+        <div className={cn('flex-1 min-w-0', !isHome && 'text-right')}>
+          <p className="text-sm font-semibold leading-tight">
+            {e.primaryUser?.displayName ?? '—'}
+            {e.type === 'OWN_GOAL' && (
+              <span className="text-xs text-red-400 font-normal"> (OG)</span>
+            )}
+          </p>
+          {e.type === 'SUBSTITUTION' && e.secondaryUser ? (
+            <p className="text-xs text-muted-foreground">
+              ↑ {e.secondaryUser.displayName} &nbsp;•&nbsp; {e.team.name}
+            </p>
+          ) : (e.type === 'GOAL' || e.type === 'EXTRA_TIME_GOAL') && e.secondaryUser ? (
+            <p className="text-xs text-muted-foreground">
+              assist: {e.secondaryUser.displayName} &nbsp;•&nbsp; {e.team.name}
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">{e.team.name}</p>
+          )}
+        </div>
+        <span className="text-xs font-bold text-primary shrink-0 w-8 text-center">{e.minute}&apos;</span>
+        {(canEdit || canDelete) && (
+          <div
+            className={cn(
+              'flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0',
+              !isHome && 'flex-row-reverse'
+            )}
+          >
+            {canEdit && (
+              <button
+                onClick={() => openEdit(e)}
+                className="p-1 rounded text-muted-foreground hover:text-foreground"
+                title="Edit event"
+              >
+                <Pencil className="h-3 w-3" />
+              </button>
+            )}
+            {canDelete && (
+              <button
+                onClick={() => setDeleteConfirm(e)}
+                className="p-1 rounded text-muted-foreground hover:text-destructive"
+                title="Delete event"
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  })
+
   return (
     <>
-      <div className="space-y-1">
-        {events.map((e) => {
-          const isHome = e.team.id === homeTeamId
-          return (
-            <div
-              key={e.id}
-              className={cn(
-                'group flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-muted/20 transition-colors',
-                isHome ? 'flex-row' : 'flex-row-reverse'
-              )}
-            >
-              <span className="text-lg shrink-0">{EVENT_ICONS[e.type] ?? '•'}</span>
-              <div className={cn('flex-1 min-w-0', !isHome && 'text-right')}>
-                <p className="text-sm font-medium leading-tight">
-                  {e.primaryUser?.displayName ?? '—'}
-                  {e.type === 'SUBSTITUTION' && e.secondaryUser && (
-                    <span className="text-muted-foreground text-xs"> ↑ {e.secondaryUser.displayName}</span>
-                  )}
-                  {e.type === 'OWN_GOAL' && (
-                    <span className="text-xs text-muted-foreground"> (OG)</span>
-                  )}
-                </p>
-                <p className="text-xs text-muted-foreground">{EVENT_LABELS[e.type] ?? e.type}</p>
-              </div>
-              <span className="text-xs font-bold text-primary shrink-0 w-8 text-center">{e.minute}'</span>
-              {(canEdit || canDelete) && (
-                <div className={cn('flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0', !isHome && 'flex-row-reverse')}>
-                  {canEdit && (
-                    <button
-                      onClick={() => openEdit(e)}
-                      className="p-1 rounded text-muted-foreground hover:text-foreground"
-                      title="Edit event"
-                    >
-                      <Pencil className="h-3 w-3" />
-                    </button>
-                  )}
-                  {canDelete && (
-                    <button
-                      onClick={() => setDeleteConfirm(e)}
-                      className="p-1 rounded text-muted-foreground hover:text-destructive"
-                      title="Delete event"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
+      <div className="space-y-0.5">{rows}</div>
 
       {/* Delete confirmation dialog */}
       <Dialog open={!!deleteConfirm} onOpenChange={(o) => { if (!o) setDeleteConfirm(null) }}>
@@ -226,7 +265,7 @@ export function MatchTimeline({
               {EVENT_LABELS[deleteConfirm?.type ?? ''] ?? deleteConfirm?.type}
             </span>{' '}
             at{' '}
-            <span className="font-medium text-foreground">{deleteConfirm?.minute}'</span>
+            <span className="font-medium text-foreground">{deleteConfirm?.minute}&apos;</span>
             {deleteConfirm?.primaryUser && (
               <> by <span className="font-medium text-foreground">{deleteConfirm.primaryUser.displayName}</span></>
             )}

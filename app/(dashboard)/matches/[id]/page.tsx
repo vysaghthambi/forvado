@@ -24,6 +24,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 type Props = { params: Promise<{ id: string }> }
 
+const GOAL_TYPES = new Set(['GOAL', 'EXTRA_TIME_GOAL', 'OWN_GOAL'])
+
 export default async function MatchPage({ params }: Props) {
   const user = await requireUser()
   const { id } = await params
@@ -68,28 +70,44 @@ export default async function MatchPage({ params }: Props) {
   const homeLineup = {
     teamId: match.homeTeamId,
     teamName: match.homeTeam.name,
-    players: match.lineups
-      .filter((l) => l.teamId === match.homeTeamId)
-      .map((l) => ({ ...l, id: l.id })),
+    players: match.lineups.filter((l) => l.teamId === match.homeTeamId),
   }
   const awayLineup = {
     teamId: match.awayTeamId,
     teamName: match.awayTeam.name,
-    players: match.lineups
-      .filter((l) => l.teamId === match.awayTeamId)
-      .map((l) => ({ ...l, id: l.id })),
+    players: match.lineups.filter((l) => l.teamId === match.awayTeamId),
   }
 
   const hasPenalties = match.status === 'PENALTY_SHOOTOUT' || match.penalties.length > 0
   const hasLineups = match.lineups.length > 0
 
-  // Players for penalty tracker (from lineups)
   const penaltyPlayers = match.lineups.map((l) => ({
     id: l.userId,
     displayName: l.user.displayName,
     jerseyNumber: l.jerseyNumber,
     teamId: l.teamId,
   }))
+
+  // Goal scorers for quick display below score
+  const goalEvents = match.events.filter((e) => GOAL_TYPES.has(e.type))
+  const homeScorers = goalEvents
+    .filter((e) => {
+      // OWN_GOAL from away team goes to home; regular goals by home team
+      if (e.type === 'OWN_GOAL') return e.team.id === match.awayTeamId
+      return e.team.id === match.homeTeamId
+    })
+    .map((e) => `${e.primaryUser?.displayName?.split(' ').at(-1) ?? '?'} ${e.minute}'`)
+
+  const awayScorers = goalEvents
+    .filter((e) => {
+      if (e.type === 'OWN_GOAL') return e.team.id === match.homeTeamId
+      return e.team.id === match.awayTeamId
+    })
+    .map((e) => `${e.primaryUser?.displayName?.split(' ').at(-1) ?? '?'} ${e.minute}'`)
+
+  const hasScore = ['FIRST_HALF', 'HALF_TIME', 'SECOND_HALF', 'EXTRA_TIME_FIRST_HALF',
+    'EXTRA_TIME_HALF_TIME', 'EXTRA_TIME_SECOND_HALF', 'PENALTY_SHOOTOUT',
+    'FULL_TIME', 'EXTRA_TIME_FULL_TIME', 'COMPLETED'].includes(match.status)
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -99,47 +117,77 @@ export default async function MatchPage({ params }: Props) {
           <Link href={`/tournaments/${match.tournamentId}`}><ArrowLeft className="h-4 w-4" /></Link>
         </Button>
         <div className="text-center">
-          <p className="text-xs text-muted-foreground">{match.tournament.name}</p>
-          {match.group && <p className="text-xs text-muted-foreground">Group {match.group.name}</p>}
-          {match.round && <Badge variant="outline" className="text-xs">{match.round}</Badge>}
-          <p className="text-xs text-muted-foreground mt-0.5">{format(new Date(match.scheduledAt), 'MMM d, yyyy HH:mm')}</p>
+          <p className="text-xs text-muted-foreground font-medium">{match.tournament.name}</p>
+          {match.group && (
+            <p className="text-xs text-muted-foreground">Group {match.group.name}</p>
+          )}
+          {match.round && <Badge variant="outline" className="text-xs mt-0.5">{match.round}</Badge>}
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {format(new Date(match.scheduledAt), 'MMM d, yyyy HH:mm')}
+          </p>
         </div>
         {canManage ? (
           <Button asChild variant="outline" size="icon" className="h-8 w-8">
             <Link href={`/matches/${id}/control`}><Settings className="h-4 w-4" /></Link>
           </Button>
-        ) : <div className="w-8" />}
+        ) : (
+          <div className="w-8" />
+        )}
       </div>
 
       {/* Live Score */}
-      <LiveScore initialMatch={{
-        id: match.id,
-        status: match.status,
-        homeScore: match.homeScore,
-        awayScore: match.awayScore,
-        homePenaltyScore: match.homePenaltyScore,
-        awayPenaltyScore: match.awayPenaltyScore,
-        matchTime: match.matchTime,
-        firstHalfStartedAt: match.firstHalfStartedAt?.toISOString() ?? null,
-        halfTimeAt: match.halfTimeAt?.toISOString() ?? null,
-        secondHalfStartedAt: match.secondHalfStartedAt?.toISOString() ?? null,
-        fullTimeAt: match.fullTimeAt?.toISOString() ?? null,
-        etFirstHalfStartedAt: match.etFirstHalfStartedAt?.toISOString() ?? null,
-        etHalfTimeAt: match.etHalfTimeAt?.toISOString() ?? null,
-        etSecondHalfStartedAt: match.etSecondHalfStartedAt?.toISOString() ?? null,
-        etFullTimeAt: match.etFullTimeAt?.toISOString() ?? null,
-        penaltyStartedAt: match.penaltyStartedAt?.toISOString() ?? null,
-        completedAt: match.completedAt?.toISOString() ?? null,
-        homeTeam: match.homeTeam,
-        awayTeam: match.awayTeam,
-      }} />
+      <LiveScore
+        initialMatch={{
+          id: match.id,
+          status: match.status,
+          homeScore: match.homeScore,
+          awayScore: match.awayScore,
+          homePenaltyScore: match.homePenaltyScore,
+          awayPenaltyScore: match.awayPenaltyScore,
+          matchTime: match.matchTime,
+          firstHalfStartedAt: match.firstHalfStartedAt?.toISOString() ?? null,
+          halfTimeAt: match.halfTimeAt?.toISOString() ?? null,
+          secondHalfStartedAt: match.secondHalfStartedAt?.toISOString() ?? null,
+          fullTimeAt: match.fullTimeAt?.toISOString() ?? null,
+          etFirstHalfStartedAt: match.etFirstHalfStartedAt?.toISOString() ?? null,
+          etHalfTimeAt: match.etHalfTimeAt?.toISOString() ?? null,
+          etSecondHalfStartedAt: match.etSecondHalfStartedAt?.toISOString() ?? null,
+          etFullTimeAt: match.etFullTimeAt?.toISOString() ?? null,
+          penaltyStartedAt: match.penaltyStartedAt?.toISOString() ?? null,
+          completedAt: match.completedAt?.toISOString() ?? null,
+          homeTeam: match.homeTeam,
+          awayTeam: match.awayTeam,
+        }}
+      />
+
+      {/* Goal scorers — quick view below score */}
+      {hasScore && (homeScorers.length > 0 || awayScorers.length > 0) && (
+        <div className="grid grid-cols-2 gap-4 -mt-2 px-2">
+          <div className="space-y-0.5">
+            {homeScorers.map((s, i) => (
+              <p key={i} className="text-xs text-muted-foreground flex items-center gap-1">
+                <span className="text-[10px]">⚽</span> {s}
+              </p>
+            ))}
+          </div>
+          <div className="space-y-0.5 text-right">
+            {awayScorers.map((s, i) => (
+              <p key={i} className="text-xs text-muted-foreground flex items-center justify-end gap-1">
+                {s} <span className="text-[10px]">⚽</span>
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Player of the Match */}
       {match.playerOfMatch && (
         <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 flex items-center gap-3">
           <Star className="h-4 w-4 text-amber-400 shrink-0" />
           <div>
-            <p className="text-xs text-amber-400 font-medium">Player of the Match</p>
+            <p className="text-xs text-amber-400 font-semibold uppercase tracking-wider">
+              Player of the Match
+            </p>
             <p className="text-sm font-semibold">{match.playerOfMatch.displayName}</p>
           </div>
         </div>
@@ -149,8 +197,11 @@ export default async function MatchPage({ params }: Props) {
       <Tabs defaultValue="events">
         <TabsList className={`grid w-full ${hasPenalties ? 'grid-cols-3' : 'grid-cols-2'}`}>
           <TabsTrigger value="events">Events</TabsTrigger>
-          {hasLineups && <TabsTrigger value="lineups">Lineups</TabsTrigger>}
-          {!hasLineups && <TabsTrigger value="lineups" disabled>Lineups</TabsTrigger>}
+          {hasLineups ? (
+            <TabsTrigger value="lineups">Lineups</TabsTrigger>
+          ) : (
+            <TabsTrigger value="lineups" disabled>Lineups</TabsTrigger>
+          )}
           {hasPenalties && <TabsTrigger value="penalties">Penalties</TabsTrigger>}
         </TabsList>
 

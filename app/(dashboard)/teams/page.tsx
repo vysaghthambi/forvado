@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import Link from 'next/link'
 import { Plus, Search } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export const metadata = { title: 'Teams — Forvado' }
 
@@ -34,38 +35,62 @@ export default async function TeamsPage({ searchParams }: Props) {
 
   const canCreateTeam = ['PLAYER', 'TEAM_OWNER', 'ADMIN'].includes(user.role)
 
+  // Build filter chip hrefs preserving the q param
+  const allHref = q ? `/teams?q=${encodeURIComponent(q)}` : '/teams'
+  const openHref = q
+    ? `/teams?q=${encodeURIComponent(q)}&accepting=true`
+    : '/teams?accepting=true'
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Teams</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">Browse and join football teams.</p>
-        </div>
+        <h1 className="text-2xl font-bold">Teams</h1>
         {canCreateTeam && (
           <Button asChild size="sm" className="gap-2">
-            <Link href="/teams/new"><Plus className="h-4 w-4" />New Team</Link>
+            <Link href="/teams/new">
+              <Plus className="h-4 w-4" />New Team
+            </Link>
           </Button>
         )}
       </div>
 
-      {/* Filters */}
-      <form method="GET" className="flex items-center gap-3">
+      {/* Search */}
+      <form method="GET" className="flex items-center gap-2">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input name="q" defaultValue={q} placeholder="Search teams…" className="pl-9" />
+          {accepting === 'true' && (
+            <input type="hidden" name="accepting" value="true" />
+          )}
         </div>
-        <label className="flex items-center gap-2 cursor-pointer text-sm">
-          <input
-            type="checkbox"
-            name="accepting"
-            value="true"
-            defaultChecked={accepting === 'true'}
-            className="accent-primary h-4 w-4"
-          />
-          Open to join
-        </label>
-        <Button type="submit" variant="secondary" size="sm">Filter</Button>
+        <Button type="submit" variant="secondary" size="sm">Search</Button>
       </form>
+
+      {/* Filter chips */}
+      <div className="flex gap-2">
+        <Link
+          href={allHref}
+          className={cn(
+            'inline-flex items-center rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors',
+            accepting !== 'true'
+              ? 'border-primary/40 bg-primary/10 text-primary'
+              : 'border-border/50 text-muted-foreground hover:border-border hover:text-foreground'
+          )}
+        >
+          All teams
+        </Link>
+        <Link
+          href={openHref}
+          className={cn(
+            'inline-flex items-center rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors',
+            accepting === 'true'
+              ? 'border-primary/40 bg-primary/10 text-primary'
+              : 'border-border/50 text-muted-foreground hover:border-border hover:text-foreground'
+          )}
+        >
+          Open to join
+        </Link>
+      </div>
 
       {teams.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-16 text-center">
