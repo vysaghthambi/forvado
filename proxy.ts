@@ -11,6 +11,10 @@ export async function proxy(request: NextRequest) {
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
+    pathname.startsWith('/icons') ||
+    pathname === '/manifest.webmanifest' ||
+    pathname === '/sw.js' ||
+    pathname === '/workbox-3c9d0171.js' ||
     pathname.startsWith('/api/auth/callback')
   ) {
     return NextResponse.next()
