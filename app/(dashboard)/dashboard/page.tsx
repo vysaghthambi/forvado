@@ -3,23 +3,10 @@ import { prisma } from '@/lib/prisma'
 import { LiveMatchesWidget } from '@/components/matches/live-matches-widget'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { format, isToday, isTomorrow } from 'date-fns'
+import { FORMAT_LABEL, TOURNAMENT_STATUS_TAG } from '@/lib/labels'
 
 export const metadata = { title: 'Dashboard — Forvado' }
-
-const FORMAT_LABEL: Record<string, string> = {
-  LEAGUE: 'League',
-  KNOCKOUT: 'Knockout',
-  GROUP_KNOCKOUT: 'Group + KO',
-}
-
-const STATUS_TAG: Record<string, { label: string; color: string; bg: string }> = {
-  ONGOING:      { label: 'Ongoing',      color: '#f5c842', bg: 'rgba(245,200,66,.12)' },
-  REGISTRATION: { label: 'Registration', color: '#3d8eff', bg: 'rgba(61,142,255,.12)' },
-  UPCOMING:     { label: 'Upcoming',     color: '#ff6b35', bg: 'rgba(255,107,53,.10)' },
-  COMPLETED:    { label: 'Completed',    color: '#5e6280', bg: 'rgba(94,98,128,.15)'  },
-}
 
 function getGreeting() {
   const h = new Date().getHours()
@@ -37,17 +24,12 @@ function fixtureDateLabel(date: Date) {
 export default async function DashboardPage() {
   const user = await requireUser()
 
-  const [memberships, tournaments, upcomingMatches] = await Promise.all([
-    prisma.teamMembership.findMany({
-      where: { userId: user.id, status: 'ACTIVE' },
-      include: { team: { select: { id: true, name: true, badgeUrl: true, homeColour: true } } },
-      take: 5,
-    }),
+  const [tournaments, upcomingMatches] = await Promise.all([
     prisma.tournament.findMany({
       where: {
         deletedAt: null,
         isPublished: true,
-        status: { in: ['ONGOING', 'REGISTRATION', 'UPCOMING'] },
+        status: { in: ['ONGOING', 'UPCOMING'] },
       },
       select: {
         id: true,
@@ -147,7 +129,7 @@ export default async function DashboardPage() {
             </div>
           ) : (
             tournaments.map((t, i) => {
-              const tag = STATUS_TAG[t.status]
+              const tag = TOURNAMENT_STATUS_TAG[t.status]
               return (
                 <Link key={t.id} href={`/tournaments/${t.id}`} className="no-underline block group">
                   <div
@@ -254,68 +236,6 @@ export default async function DashboardPage() {
                       <div style={{ fontSize: 10, color: 'var(--muted-foreground)', marginTop: 2 }}>
                         {m.tournament.name}
                       </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Your Teams */}
-          {memberships.length > 0 && (
-            <div
-              className="overflow-hidden"
-              style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12 }}
-            >
-              <div
-                className="flex items-center justify-between gap-2"
-                style={{ padding: '13px 16px', borderBottom: '1px solid var(--border)' }}
-              >
-                <span
-                  style={{
-                    fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
-                    fontSize: 13,
-                    fontWeight: 700,
-                    letterSpacing: '.5px',
-                    textTransform: 'uppercase',
-                    color: 'var(--muted-foreground)',
-                  }}
-                >
-                  Your Teams
-                </span>
-                <Link
-                  href="/teams"
-                  className="no-underline flex items-center gap-1 transition-colors"
-                  style={{ fontSize: 11, color: 'var(--muted-foreground)' }}
-                >
-                  View all <ArrowRight className="h-3 w-3" />
-                </Link>
-              </div>
-
-              <div style={{ padding: '10px 12px', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {memberships.map(({ team }) => (
-                  <Link key={team.id} href={`/teams/${team.id}`} className="no-underline">
-                    <div
-                      className="flex items-center gap-2 group transition-colors"
-                      style={{
-                        padding: '5px 12px 5px 6px',
-                        borderRadius: 99,
-                        border: '1px solid var(--border)',
-                        background: 'var(--secondary)',
-                      }}
-                    >
-                      <Avatar className="h-6 w-6 rounded-full">
-                        <AvatarImage src={team.badgeUrl ?? ''} />
-                        <AvatarFallback
-                          className="text-[10px] font-bold rounded-full"
-                          style={team.homeColour ? { background: team.homeColour, color: '#fff' } : undefined}
-                        >
-                          {team.name.slice(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--foreground)' }}>
-                        {team.name}
-                      </span>
                     </div>
                   </Link>
                 ))}

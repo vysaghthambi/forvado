@@ -1,19 +1,6 @@
 import Link from 'next/link'
 import { format } from 'date-fns'
-
-const STATUS_TAG: Record<string, { label: string; color: string; bg: string }> = {
-  DRAFT:        { label: 'Draft',        color: 'var(--muted-clr)',  bg: 'rgba(94,98,128,.15)' },
-  REGISTRATION: { label: 'Registration', color: 'var(--blue)',       bg: 'var(--blue-dim)' },
-  UPCOMING:     { label: 'Upcoming',     color: 'var(--orange)',     bg: 'var(--orange-dim)' },
-  ONGOING:      { label: 'Ongoing',      color: 'var(--accent-clr)', bg: 'var(--accent-dim)' },
-  COMPLETED:    { label: 'Completed',    color: 'var(--muted-clr)',  bg: 'rgba(94,98,128,.15)' },
-}
-
-const FORMAT_LABELS: Record<string, string> = {
-  LEAGUE:         'League',
-  KNOCKOUT:       'Knockout',
-  GROUP_KNOCKOUT: 'Group + Knockout',
-}
+import { FORMAT_LABEL, TOURNAMENT_STATUS_TAG } from '@/lib/labels'
 
 interface Props {
   tournament: {
@@ -31,7 +18,7 @@ interface Props {
 }
 
 export function TournamentCard({ tournament: t }: Props) {
-  const tag = STATUS_TAG[t.status]
+  const tag = TOURNAMENT_STATUS_TAG[t.status]
   const isDraft = t.status === 'DRAFT'
   const isCompleted = t.status === 'COMPLETED'
 
@@ -81,7 +68,7 @@ export function TournamentCard({ tournament: t }: Props) {
               {t.name}
             </div>
             <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 2 }}>
-              {FORMAT_LABELS[t.format] ?? t.format}
+              {FORMAT_LABEL[t.format] ?? t.format}
               {t._count ? ` · ${t._count.teams}/${t.maxTeams} teams` : ''}
             </div>
           </div>

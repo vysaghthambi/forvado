@@ -8,6 +8,7 @@ import { GroupStandingsTabs } from '@/components/tournaments/group-standings-tab
 import { FixturesList } from '@/components/tournaments/fixtures-list'
 import Link from 'next/link'
 import { format } from 'date-fns'
+import { FORMAT_LABEL, TOURNAMENT_STATUS_TAG } from '@/lib/labels'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -15,17 +16,6 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title: t ? `${t.name} — Forvado` : 'Tournament — Forvado' }
 }
 
-const STATUS_TAG: Record<string, { label: string; color: string; bg: string }> = {
-  DRAFT: { label: 'Draft', color: 'var(--muted-clr)', bg: 'rgba(94,98,128,.15)' },
-  REGISTRATION: { label: 'Registration', color: 'var(--blue)', bg: 'var(--blue-dim)' },
-  UPCOMING: { label: 'Upcoming', color: 'var(--orange)', bg: 'var(--orange-dim)' },
-  ONGOING: { label: 'Ongoing', color: 'var(--accent-clr)', bg: 'var(--accent-dim)' },
-  COMPLETED: { label: 'Completed', color: 'var(--muted-clr)', bg: 'rgba(94,98,128,.15)' },
-}
-
-const FORMAT_LABELS: Record<string, string> = {
-  LEAGUE: 'League', KNOCKOUT: 'Knockout', GROUP_KNOCKOUT: 'Group + Knockout',
-}
 
 const COMPLETED_STATUSES = new Set(['COMPLETED', 'FULL_TIME', 'EXTRA_TIME_FULL_TIME'])
 const LIVE_STATUSES = new Set([
@@ -156,7 +146,7 @@ export default async function TournamentDetailPage({ params }: Props) {
   // Hero
   const initials = tournament.name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()
   const dateRange = `${format(new Date(tournament.startDate), 'MMM d')} – ${format(new Date(tournament.endDate), 'MMM d, yyyy')}`
-  const tag = STATUS_TAG[currentStatus]
+  const tag = TOURNAMENT_STATUS_TAG[currentStatus]
 
   const rankColors = ['var(--accent-clr)', '#b0b8d0', '#cd7f32']
 
@@ -189,7 +179,7 @@ export default async function TournamentDetailPage({ params }: Props) {
               )}
             </div>
             <div style={{ fontSize: 12, color: 'var(--muted-clr)', marginTop: 4 }}>
-              {FORMAT_LABELS[tournament.format] ?? tournament.format}
+              {FORMAT_LABEL[tournament.format] ?? tournament.format}
               {tournament.venue ? ` · ${tournament.venue}` : ''}
               {` · ${dateRange}`}
             </div>

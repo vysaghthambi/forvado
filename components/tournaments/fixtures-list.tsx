@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { format, isToday, isTomorrow, startOfDay } from 'date-fns'
+import { MATCH_STATUS_LABEL } from '@/lib/labels'
 
 const LIVE_STATUSES = new Set([
   'FIRST_HALF', 'HALF_TIME', 'SECOND_HALF',
@@ -9,22 +10,6 @@ const LIVE_STATUSES = new Set([
   'PENALTY_SHOOTOUT',
 ])
 const COMPLETED_STATUSES = new Set(['COMPLETED', 'FULL_TIME', 'EXTRA_TIME_FULL_TIME'])
-
-const STATUS_LABEL: Record<string, string> = {
-  SCHEDULED: 'Scheduled',
-  FIRST_HALF: '1st Half',
-  HALF_TIME: 'Half Time',
-  SECOND_HALF: '2nd Half',
-  FULL_TIME: 'Full Time',
-  EXTRA_TIME_FIRST_HALF: 'ET 1st',
-  EXTRA_TIME_HALF_TIME: 'ET HT',
-  EXTRA_TIME_SECOND_HALF: 'ET 2nd',
-  EXTRA_TIME_FULL_TIME: 'AET',
-  PENALTY_SHOOTOUT: 'Penalties',
-  COMPLETED: 'Full Time',
-  CANCELLED: 'Cancelled',
-  POSTPONED: 'Postponed',
-}
 
 interface MatchTeam {
   id: string
@@ -99,9 +84,9 @@ function MatchItem({ m, isLast, showGroup }: { m: Match; isLast: boolean; showGr
   const isScheduled = !isLive && !isCompleted
 
   const metaText = isLive
-    ? STATUS_LABEL[m.status] ?? m.status
+    ? MATCH_STATUS_LABEL[m.status] ?? m.status
     : isCompleted
-    ? STATUS_LABEL[m.status] ?? 'Full Time'
+    ? MATCH_STATUS_LABEL[m.status] ?? 'Full Time'
     : format(new Date(m.scheduledAt), 'h:mm a')
 
   const roundLabel = [
