@@ -5,7 +5,7 @@ import { canManageTournament } from '@/services/tournaments'
 import { z } from 'zod'
 
 const schema = z.object({
-  status: z.enum(['DRAFT', 'REGISTRATION', 'UPCOMING', 'ONGOING', 'COMPLETED']),
+  status: z.enum(['DRAFT', 'UPCOMING', 'ONGOING', 'COMPLETED']),
 })
 
 type Props = { params: Promise<{ id: string }> }

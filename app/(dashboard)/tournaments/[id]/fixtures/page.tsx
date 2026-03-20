@@ -47,6 +47,7 @@ export default async function TournamentFixturesPage({ params }: Props) {
 
   await autoUpdateTournamentStatus(id, tournament)
   const canManage = await canManageTournament(id, user.id, user.role)
+  const canCreateFixture = canManage && ['DRAFT', 'UPCOMING', 'ONGOING'].includes(tournament.status)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 960, margin: '0 auto' }}>
@@ -79,7 +80,7 @@ export default async function TournamentFixturesPage({ params }: Props) {
         </div>
 
         <div style={{ display: 'flex', gap: 8 }}>
-          {canManage && (
+          {canCreateFixture && (
             <CreateFixtureDialog
               tournamentId={id}
               format={tournament.format}

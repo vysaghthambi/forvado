@@ -50,6 +50,10 @@ export async function POST(request: Request) {
   const { user, error } = await getSessionUser()
   if (error) return error
 
+  if (user.role !== 'ADMIN' && user.role !== 'TEAM_OWNER') {
+    return NextResponse.json({ error: 'Only admins and team owners can create teams' }, { status: 403 })
+  }
+
   const body = await request.json()
   const parsed = createSchema.safeParse(body)
   if (!parsed.success) {
@@ -67,11 +71,6 @@ export async function POST(request: Request) {
   await prisma.teamMembership.create({
     data: { teamId: team.id, userId: user.id, role: 'CAPTAIN', status: 'ACTIVE' },
   })
-
-  // Promote user to TEAM_OWNER role if they are a plain PLAYER
-  if (user.role === 'PLAYER') {
-    await prisma.user.update({ where: { id: user.id }, data: { role: 'TEAM_OWNER' } })
-  }
 
   return NextResponse.json({ team }, { status: 201 })
 }

@@ -10,11 +10,10 @@ export default async function AdminPage() {
   const user = await requireUser()
   if (user.role !== 'ADMIN') redirect('/dashboard')
 
-  const [totalUsers, adminCount, ownerCount, coordinatorCount, playerCount, users] = await Promise.all([
+  const [totalUsers, adminCount, ownerCount, playerCount, users] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { role: 'ADMIN' } }),
     prisma.user.count({ where: { role: 'TEAM_OWNER' } }),
-    prisma.user.count({ where: { role: 'COORDINATOR' } }),
     prisma.user.count({ where: { role: 'PLAYER' } }),
     prisma.user.findMany({
       orderBy: { createdAt: 'desc' },
@@ -34,8 +33,8 @@ export default async function AdminPage() {
   const kpis = [
     { label: 'Total Users', value: totalUsers, sub: 'Across all roles', accent: 'var(--accent-clr)', border: 'var(--accent-dim)' },
     { label: 'Admins', value: adminCount, sub: 'Full platform access', accent: 'var(--blue)', border: 'var(--blue-dim)' },
-    { label: 'Coordinators', value: coordinatorCount, sub: 'Manage tournaments', accent: 'var(--purple)', border: 'var(--purple-dim)' },
-    { label: 'Team Owners', value: ownerCount, sub: `+${playerCount} players`, accent: 'var(--green)', border: 'var(--green-dim)' },
+    { label: 'Team Owners', value: ownerCount, sub: 'Own and manage teams', accent: 'var(--green)', border: 'var(--green-dim)' },
+    { label: 'Players', value: playerCount, sub: 'Active participants', accent: 'var(--muted-clr)', border: 'var(--border)' },
   ]
 
   // Serialize dates for client component

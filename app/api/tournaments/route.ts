@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   const tournaments = await prisma.tournament.findMany({
     where: {
       deletedAt: null,
-      isPublished: user.role === 'ADMIN' || user.role === 'COORDINATOR' ? undefined : true,
+      isPublished: user.role === 'ADMIN' ? undefined : true,
       ...(status ? { status: status as never } : {}),
       ...(format ? { format: format as never } : {}),
       ...(search ? { name: { contains: search, mode: 'insensitive' } } : {}),

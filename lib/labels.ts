@@ -2,7 +2,6 @@
 
 export const TOURNAMENT_STATUS_TAG: Record<string, { label: string; color: string; bg: string }> = {
   DRAFT:        { label: 'Draft',        color: 'var(--muted-clr)',  bg: 'rgba(94,98,128,.15)' },
-  REGISTRATION: { label: 'Registration', color: 'var(--blue)',       bg: 'var(--blue-dim)'     },
   UPCOMING:     { label: 'Upcoming',     color: 'var(--orange)',     bg: 'var(--orange-dim)'   },
   ONGOING:      { label: 'Ongoing',      color: 'var(--accent-clr)', bg: 'var(--accent-dim)'   },
   COMPLETED:    { label: 'Completed',    color: 'var(--muted-clr)',  bg: 'rgba(94,98,128,.15)' },

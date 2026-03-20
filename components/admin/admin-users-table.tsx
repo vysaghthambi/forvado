@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 
-type Role = 'PLAYER' | 'TEAM_OWNER' | 'COORDINATOR' | 'ADMIN'
+type Role = 'PLAYER' | 'TEAM_OWNER' | 'ADMIN'
 
 interface AdminUser {
   id: string
@@ -19,23 +19,20 @@ interface AdminUser {
 const ROLE_OPTIONS: { value: Role | ''; label: string }[] = [
   { value: '', label: 'All roles' },
   { value: 'ADMIN', label: 'Admin' },
-  { value: 'COORDINATOR', label: 'Coordinator' },
   { value: 'TEAM_OWNER', label: 'Team Owner' },
   { value: 'PLAYER', label: 'Player' },
 ]
 
 const ROLE_STYLE: Record<Role, { label: string; color: string; bg: string }> = {
-  ADMIN:       { label: 'Admin',       color: 'var(--accent-clr)', bg: 'var(--accent-dim)' },
-  COORDINATOR: { label: 'Coordinator', color: 'var(--purple)',     bg: 'var(--purple-dim)' },
-  TEAM_OWNER:  { label: 'Team Owner',  color: 'var(--blue)',       bg: 'var(--blue-dim)'   },
-  PLAYER:      { label: 'Player',      color: 'var(--muted-clr)',  bg: 'rgba(94,98,128,.15)' },
+  ADMIN:      { label: 'Admin',      color: 'var(--accent-clr)', bg: 'var(--accent-dim)' },
+  TEAM_OWNER: { label: 'Team Owner', color: 'var(--blue)',       bg: 'var(--blue-dim)'   },
+  PLAYER:     { label: 'Player',     color: 'var(--muted-clr)',  bg: 'rgba(94,98,128,.15)' },
 }
 
 const ROLE_COLOURS: Record<Role, { bg: string; text: string }> = {
-  ADMIN:       { bg: '#2a1e00', text: '#f5c842' },
-  COORDINATOR: { bg: '#1e1535', text: '#a855f7' },
-  TEAM_OWNER:  { bg: '#1a2040', text: '#3d8eff' },
-  PLAYER:      { bg: '#1a1d2a', text: '#9298b8' },
+  ADMIN:      { bg: '#2a1e00', text: '#f5c842' },
+  TEAM_OWNER: { bg: '#1a2040', text: '#3d8eff' },
+  PLAYER:     { bg: '#1a1d2a', text: '#9298b8' },
 }
 
 const inputStyle: React.CSSProperties = {
@@ -238,7 +235,6 @@ export function AdminUsersTable({ initialUsers, currentUserId }: { initialUsers:
                       >
                         <option value="PLAYER">Player</option>
                         <option value="TEAM_OWNER">Team Owner</option>
-                        <option value="COORDINATOR">Coordinator</option>
                         <option value="ADMIN">Admin</option>
                       </select>
                     )}

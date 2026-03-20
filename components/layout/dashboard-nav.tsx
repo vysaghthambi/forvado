@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { NotificationBell } from '@/components/notifications/notification-bell'
-import { Home, Trophy, Users, User, ShieldCheck, ClipboardList, LogOut } from 'lucide-react'
+import { Home, Trophy, Users, User, ShieldCheck, LogOut } from 'lucide-react'
 import type { User as PrismaUser } from '@prisma/client'
 
 interface Props {
@@ -54,20 +54,11 @@ function IconAdmin() {
     </svg>
   )
 }
-function IconCoordinator() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
-    </svg>
-  )
-}
-
 const NAV_TABS = [
-  { href: '/dashboard', label: 'Dashboard', roles: ['PLAYER', 'TEAM_OWNER', 'COORDINATOR', 'ADMIN'], Icon: IconDashboard },
-  { href: '/tournaments', label: 'Tournaments', roles: ['PLAYER', 'TEAM_OWNER', 'COORDINATOR', 'ADMIN'], Icon: IconTournaments },
-  { href: '/teams', label: 'Teams', roles: ['PLAYER', 'TEAM_OWNER', 'COORDINATOR', 'ADMIN'], Icon: IconTeams },
-  { href: '/admin', label: 'Admin', roles: ['ADMIN'], Icon: IconAdmin },
-  { href: '/coordinator', label: 'Coordinator', roles: ['COORDINATOR', 'ADMIN'], Icon: IconCoordinator },
+  { href: '/dashboard',   label: 'Dashboard',   roles: ['PLAYER', 'TEAM_OWNER', 'ADMIN'], Icon: IconDashboard },
+  { href: '/tournaments', label: 'Tournaments', roles: ['PLAYER', 'TEAM_OWNER', 'ADMIN'], Icon: IconTournaments },
+  { href: '/teams',       label: 'Teams',       roles: ['PLAYER', 'TEAM_OWNER', 'ADMIN'], Icon: IconTeams },
+  { href: '/admin',       label: 'Admin',       roles: ['ADMIN'], Icon: IconAdmin },
 ]
 
 export function DashboardNav({ user }: Props) {
@@ -336,17 +327,6 @@ export function DashboardNav({ user }: Props) {
               </Link>
             )}
 
-            {['COORDINATOR', 'ADMIN'].includes(user.role) && (
-              <Link
-                href="/coordinator"
-                onClick={() => setMeOpen(false)}
-                className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition-colors no-underline"
-                style={{ color: 'var(--foreground)' }}
-              >
-                <ClipboardList className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
-                Coordinator
-              </Link>
-            )}
 
             <button
               onClick={() => { setMeOpen(false); handleSignOut() }}

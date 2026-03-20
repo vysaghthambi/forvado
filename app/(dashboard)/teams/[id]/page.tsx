@@ -1,14 +1,12 @@
 import { requireUser } from '@/lib/auth'
 import { getTeamWithDetails } from '@/services/teams'
-import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import { TeamRoster } from '@/components/teams/team-roster'
-import { InvitePlayerDialog } from '@/components/teams/invite-player-dialog'
-import { JoinRequestButton } from '@/components/teams/join-request-button'
+import { AddPlayerDialog } from '@/components/teams/invite-player-dialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { ArrowLeft, Settings, Users } from 'lucide-react'
+import { ArrowLeft, Users } from 'lucide-react'
 
 export const metadata = { title: 'Team — Forvado' }
 
@@ -22,13 +20,6 @@ export default async function TeamDetailPage({ params }: Props) {
   if (!team) notFound()
 
   const isOwner = team.ownerId === user.id
-  const isMember = team.members.some((m) => m.userId === user.id && m.status === 'ACTIVE')
-
-  const pending = await prisma.teamInvitation.findFirst({
-    where: { teamId: id, userId: user.id, status: 'PENDING' },
-    select: { id: true, type: true },
-  })
-
   const memberCount = team.members.length
 
   return (
@@ -89,29 +80,13 @@ export default async function TeamDetailPage({ params }: Props) {
             </div>
           </div>
 
-          {/* Owner/member actions */}
-          {(isOwner || (!isOwner && !isMember)) && (
+          {/* Owner actions */}
+          {isOwner && (
             <div className="mt-4 pt-4 border-t border-border/40 flex flex-wrap gap-2">
-              {isOwner && (
-                <>
-                  <InvitePlayerDialog teamId={id} />
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={`/teams/${id}/invitations`}>Requests</Link>
-                  </Button>
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={`/teams/${id}/edit`}>
-                      <Settings className="h-3.5 w-3.5 mr-1.5" />Settings
-                    </Link>
-                  </Button>
-                </>
-              )}
-              {!isOwner && !isMember && (
-                <JoinRequestButton
-                  teamId={id}
-                  isAccepting={team.isAcceptingRequests}
-                  existingPending={!!pending}
-                />
-              )}
+              <AddPlayerDialog
+                teamId={id}
+                memberUserIds={team.members.map((m) => m.userId)}
+              />
             </div>
           )}
         </div>

@@ -34,7 +34,7 @@ export default async function TournamentsPage({ searchParams }: Props) {
   const counts = {
     all:       tournaments.length,
     ongoing:   tournaments.filter((t) => t.status === 'ONGOING').length,
-    upcoming:  tournaments.filter((t) => ['REGISTRATION', 'UPCOMING'].includes(t.status)).length,
+    upcoming:  tournaments.filter((t) => t.status === 'UPCOMING').length,
     completed: tournaments.filter((t) => t.status === 'COMPLETED').length,
     draft:     tournaments.filter((t) => t.status === 'DRAFT').length,
   }

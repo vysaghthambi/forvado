@@ -1,11 +1,13 @@
 import { requireUser } from '@/lib/auth'
 import { CreateTeamForm } from '@/components/teams/create-team-form'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 
 export const metadata = { title: 'Create Team — Forvado' }
 
 export default async function NewTeamPage() {
-  await requireUser()
+  const user = await requireUser()
+  if (user.role !== 'ADMIN' && user.role !== 'TEAM_OWNER') redirect('/teams')
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>

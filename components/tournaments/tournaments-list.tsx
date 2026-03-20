@@ -37,7 +37,7 @@ export function TournamentsList({ tournaments, tabs, activeTab, showDraft }: Pro
     const matchesTab =
       activeTab === 'all' ? true :
       activeTab === 'ongoing' ? t.status === 'ONGOING' :
-      activeTab === 'upcoming' ? ['REGISTRATION', 'UPCOMING'].includes(t.status) :
+      activeTab === 'upcoming' ? t.status === 'UPCOMING' :
       activeTab === 'completed' ? t.status === 'COMPLETED' :
       activeTab === 'draft' ? t.status === 'DRAFT' : true
 

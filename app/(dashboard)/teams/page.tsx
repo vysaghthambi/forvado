@@ -1,14 +1,13 @@
 import { requireUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
-import { TeamJoinSearch } from '@/components/teams/team-join-search'
 
 export const metadata = { title: 'Teams — Forvado' }
 
 export default async function TeamsPage() {
   const user = await requireUser()
 
-  const canCreateTeam = ['PLAYER', 'TEAM_OWNER', 'ADMIN'].includes(user.role)
+  const canCreateTeam = user.role === 'ADMIN' || user.role === 'TEAM_OWNER'
 
   // My teams — teams where user is a member
   const myMemberships = await prisma.teamMembership.findMany({
@@ -108,20 +107,11 @@ export default async function TeamsPage() {
               return (
                 <Link key={team.id} href={`/teams/${team.id}`} className="no-underline group">
                   <div
-                    className="group-hover:border-border3 transition-all"
+                    className="group-hover:border-border3 group-hover:-translate-y-px group-hover:shadow-[0_4px_24px_rgba(0,0,0,.5)] transition-all"
                     style={{
                       background: 'var(--card)', border: '1px solid var(--border)',
                       borderRadius: 12, padding: '16px 18px',
                       display: 'flex', alignItems: 'center', gap: 14,
-                      transition: 'border-color .15s, transform .15s, box-shadow .15s',
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'
-                      ;(e.currentTarget as HTMLElement).style.boxShadow = '0 4px 24px rgba(0,0,0,.5)'
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLElement).style.transform = ''
-                      ;(e.currentTarget as HTMLElement).style.boxShadow = ''
                     }}
                   >
                     {/* Badge */}
@@ -176,11 +166,6 @@ export default async function TeamsPage() {
         )}
       </div>
 
-      {/* ── Join a Team ── */}
-      <div>
-        <SectionLabel>Join a Team</SectionLabel>
-        <TeamJoinSearch myTeamIds={myTeamIds} />
-      </div>
     </div>
   )
 }

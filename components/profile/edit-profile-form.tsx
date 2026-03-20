@@ -20,7 +20,6 @@ const POSITION_LABELS = { GK: 'Goalkeeper', DEF: 'Defender', MID: 'Midfielder', 
 const ROLE_LABELS: Record<string, string> = {
   PLAYER: 'Player',
   TEAM_OWNER: 'Team Owner',
-  COORDINATOR: 'Tournament Coordinator',
   ADMIN: 'Administrator',
 }
 

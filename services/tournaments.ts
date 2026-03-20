@@ -37,8 +37,7 @@ export const canManageTournament = cache(async (
   userRole: Role
 ): Promise<boolean> => {
   if (userRole === 'ADMIN') return true
-  if (userRole === 'COORDINATOR') return isTournamentCoordinator(tournamentId, userId)
-  return false
+  return isTournamentCoordinator(tournamentId, userId)
 })
 
 export async function autoUpdateTournamentStatus(

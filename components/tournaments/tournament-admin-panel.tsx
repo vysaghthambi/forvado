@@ -35,11 +35,10 @@ interface Props {
 }
 
 const STATUS_OPTIONS = [
-  { value: 'DRAFT',        label: 'Draft',        desc: 'Not published. Only visible to admins.' },
-  { value: 'REGISTRATION', label: 'Registration',  desc: 'Open for team sign-ups.' },
-  { value: 'UPCOMING',     label: 'Upcoming',      desc: 'Tournament is scheduled but not yet started.' },
-  { value: 'ONGOING',      label: 'Ongoing',       desc: 'Tournament is active and matches are being played.' },
-  { value: 'COMPLETED',    label: 'Completed',     desc: 'All matches played and results are final.' },
+  { value: 'DRAFT',     label: 'Draft',     desc: 'Not published. Only visible to admins.' },
+  { value: 'UPCOMING',  label: 'Upcoming',  desc: 'Tournament is scheduled but not yet started.' },
+  { value: 'ONGOING',   label: 'Ongoing',   desc: 'Tournament is active and matches are being played.' },
+  { value: 'COMPLETED', label: 'Completed', desc: 'All matches played and results are final.' },
 ]
 
 function Spinner() {

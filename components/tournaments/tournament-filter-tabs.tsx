@@ -54,18 +54,6 @@ export function TournamentFilterTabs({ tabs, activeTab }: Props) {
             }}
           >
             {tab.label}
-            {tab.count > 0 && (
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  color: active ? 'var(--accent-clr)' : 'var(--muted-clr)',
-                  fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
-                }}
-              >
-                {tab.count}
-              </span>
-            )}
           </button>
         )
       })}
