@@ -4,6 +4,7 @@ import { getSessionUser } from '@/lib/rbac'
 import { canManageTournament } from '@/services/tournaments'
 import { z } from 'zod'
 import type { MatchEventType } from '@prisma/client'
+import { revalidateTag } from 'next/cache'
 
 type Props = { params: Promise<{ id: string; eventId: string }> }
 
@@ -78,6 +79,10 @@ export async function PATCH(req: NextRequest, { params }: Props) {
     return evt
   })
 
+  revalidateTag(`match-${id}`, {})
+  revalidateTag(`tournament-${match.tournamentId}`, {})
+  revalidateTag(`fixtures-${match.tournamentId}`, {})
+  revalidateTag(`standings-${match.tournamentId}`, {})
   return NextResponse.json({ event: updated })
 }
 
@@ -107,5 +112,9 @@ export async function DELETE(_req: NextRequest, { params }: Props) {
     if (needsRecalc) await recalcScore(tx, id, match.homeTeamId, match.awayTeamId)
   })
 
+  revalidateTag(`match-${id}`, {})
+  revalidateTag(`tournament-${match.tournamentId}`, {})
+  revalidateTag(`fixtures-${match.tournamentId}`, {})
+  revalidateTag(`standings-${match.tournamentId}`, {})
   return NextResponse.json({ success: true })
 }

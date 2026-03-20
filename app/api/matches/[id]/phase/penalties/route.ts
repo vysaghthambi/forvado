@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
 import { canManageTournament } from '@/services/tournaments'
 import { broadcastMatchEvent } from '@/lib/realtime'
+import { revalidateTag } from 'next/cache'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -30,6 +31,9 @@ export async function POST(_req: NextRequest, { params }: Props) {
     select: { id: true, status: true },
   })
 
+  revalidateTag(`match-${id}`, {})
+  revalidateTag(`tournament-${match.tournamentId}`, {})
+  revalidateTag(`fixtures-${match.tournamentId}`, {})
   void broadcastMatchEvent(id, 'PHASE_CHANGE', { matchId: id, status: 'PENALTY_SHOOTOUT', timestamp: now.toISOString() })
 
   return NextResponse.json({ match: updated })

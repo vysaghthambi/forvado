@@ -4,6 +4,7 @@ import { getSessionUser } from '@/lib/rbac'
 import { canManageTournament } from '@/services/tournaments'
 import { broadcastMatchEvent } from '@/lib/realtime'
 import type { MatchStatus } from '@prisma/client'
+import { revalidateTag } from 'next/cache'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -99,6 +100,10 @@ export async function POST(_req: NextRequest, { params }: Props) {
     },
     select: { id: true, status: true, [tsField ?? 'id']: true },
   })
+
+  revalidateTag(`match-${id}`, {})
+  revalidateTag(`tournament-${match.tournamentId}`, {})
+  revalidateTag(`fixtures-${match.tournamentId}`, {})
 
   // Broadcast phase change for instant client updates (supplements postgres_changes)
   void broadcastMatchEvent(id, 'PHASE_CHANGE', {

@@ -2,34 +2,50 @@ import { requireUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { TournamentsList } from '@/components/tournaments/tournaments-list'
 import Link from 'next/link'
+import { unstable_cache } from 'next/cache'
 
 export const metadata = { title: 'Tournaments — Forvado' }
 
 type Props = { searchParams: Promise<{ tab?: string }> }
 
+const TOURNAMENT_SELECT = {
+  id: true,
+  name: true,
+  format: true,
+  status: true,
+  startDate: true,
+  endDate: true,
+  venue: true,
+  maxTeams: true,
+  isPublished: true,
+  _count: { select: { teams: true, matches: true } },
+} as const
+
+const getTournamentsAdmin = unstable_cache(
+  () => prisma.tournament.findMany({
+    where: { deletedAt: null },
+    select: TOURNAMENT_SELECT,
+    orderBy: { startDate: 'asc' },
+  }),
+  ['tournaments-list', 'admin'],
+  { tags: ['tournaments-list'] },
+)
+
+const getTournamentsPublic = unstable_cache(
+  () => prisma.tournament.findMany({
+    where: { deletedAt: null, isPublished: true, status: { not: 'DRAFT' } },
+    select: TOURNAMENT_SELECT,
+    orderBy: { startDate: 'asc' },
+  }),
+  ['tournaments-list', 'public'],
+  { tags: ['tournaments-list'] },
+)
+
 export default async function TournamentsPage({ searchParams }: Props) {
   const user = await requireUser()
   const { tab } = await searchParams
 
-  const tournaments = await prisma.tournament.findMany({
-    where: {
-      deletedAt: null,
-      ...(user.role !== 'ADMIN' ? { isPublished: true, status: { not: 'DRAFT' } } : {}),
-    },
-    select: {
-      id: true,
-      name: true,
-      format: true,
-      status: true,
-      startDate: true,
-      endDate: true,
-      venue: true,
-      maxTeams: true,
-      isPublished: true,
-      _count: { select: { teams: true, matches: true } },
-    },
-    orderBy: { startDate: 'asc' },
-  })
+  const tournaments = await (user.role === 'ADMIN' ? getTournamentsAdmin() : getTournamentsPublic())
 
   const counts = {
     all:       tournaments.length,
@@ -59,8 +75,8 @@ export default async function TournamentsPage({ searchParams }: Props) {
   // Serialize dates for client
   const serialized = tournaments.map((t) => ({
     ...t,
-    startDate: t.startDate.toISOString(),
-    endDate: t.endDate.toISOString(),
+    startDate: new Date(t.startDate).toISOString(),
+    endDate: new Date(t.endDate).toISOString(),
   }))
 
   return (

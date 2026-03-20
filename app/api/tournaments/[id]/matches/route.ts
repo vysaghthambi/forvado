@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
 import { canManageTournament } from '@/services/tournaments'
 import { z } from 'zod'
+import { revalidateTag } from 'next/cache'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -128,5 +129,7 @@ export async function POST(req: NextRequest, { params }: Props) {
     },
   })
 
+  revalidateTag(`tournament-${id}`, {})
+  revalidateTag(`fixtures-${id}`, {})
   return NextResponse.json({ match }, { status: 201 })
 }

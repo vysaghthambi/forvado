@@ -9,6 +9,7 @@ import { FixturesList } from '@/components/tournaments/fixtures-list'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { FORMAT_LABEL, TOURNAMENT_STATUS_TAG } from '@/lib/labels'
+import { unstable_cache } from 'next/cache'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -26,64 +27,72 @@ const LIVE_STATUSES = new Set([
 
 type Props = { params: Promise<{ id: string }> }
 
+function getTournamentDetailData(id: string) {
+  return unstable_cache(
+    () => Promise.all([
+      prisma.tournament.findUnique({
+        where: { id, deletedAt: null },
+        include: {
+          teams: {
+            include: {
+              team: { select: { id: true, name: true, badgeUrl: true, homeColour: true, shortCode: true } },
+              group: { select: { id: true, name: true } },
+            },
+            orderBy: { registeredAt: 'asc' },
+          },
+          groups: { orderBy: { name: 'asc' } },
+          coordinators: { include: { user: { select: { id: true, displayName: true } } } },
+          matches: {
+            include: {
+              homeTeam: { select: { id: true, name: true, badgeUrl: true, homeColour: true, shortCode: true } },
+              awayTeam: { select: { id: true, name: true, badgeUrl: true, homeColour: true, shortCode: true } },
+              group: { select: { id: true, name: true } },
+            },
+            orderBy: { matchOrder: 'asc' },
+          },
+        },
+      }),
+      prisma.matchEvent.findMany({
+        where: {
+          match: { tournamentId: id },
+          type: { in: ['GOAL', 'OWN_GOAL', 'EXTRA_TIME_GOAL'] },
+          primaryUserId: { not: null },
+        },
+        include: {
+          primaryUser: { select: { id: true, displayName: true } },
+          team: { select: { id: true, name: true, homeColour: true } },
+        },
+      }),
+      prisma.matchEvent.findMany({
+        where: {
+          match: { tournamentId: id },
+          type: { in: ['YELLOW_CARD', 'RED_CARD', 'SECOND_YELLOW'] },
+          primaryUserId: { not: null },
+        },
+        include: {
+          primaryUser: { select: { id: true, displayName: true } },
+          team: { select: { id: true, name: true, homeColour: true } },
+        },
+      }),
+      prisma.match.findMany({
+        where: { tournamentId: id, playerOfMatchId: { not: null } },
+        select: {
+          playerOfMatch: { select: { id: true, displayName: true } },
+          homeTeam: { select: { name: true } },
+          awayTeam: { select: { name: true } },
+        },
+      }),
+    ]),
+    ['tournament-detail', id],
+    { tags: [`tournament-${id}`] },
+  )()
+}
+
 export default async function TournamentDetailPage({ params }: Props) {
   const user = await requireUser()
   const { id } = await params
 
-  const [tournament, goalEvents, cardEvents, potmMatches] = await Promise.all([
-    prisma.tournament.findUnique({
-      where: { id, deletedAt: null },
-      include: {
-        teams: {
-          include: {
-            team: { select: { id: true, name: true, badgeUrl: true, homeColour: true, shortCode: true } },
-            group: { select: { id: true, name: true } },
-          },
-          orderBy: { registeredAt: 'asc' },
-        },
-        groups: { orderBy: { name: 'asc' } },
-        coordinators: { include: { user: { select: { id: true, displayName: true } } } },
-        matches: {
-          include: {
-            homeTeam: { select: { id: true, name: true, badgeUrl: true, homeColour: true, shortCode: true } },
-            awayTeam: { select: { id: true, name: true, badgeUrl: true, homeColour: true, shortCode: true } },
-            group: { select: { id: true, name: true } },
-          },
-          orderBy: { matchOrder: 'asc' },
-        },
-      },
-    }),
-    prisma.matchEvent.findMany({
-      where: {
-        match: { tournamentId: id },
-        type: { in: ['GOAL', 'OWN_GOAL', 'EXTRA_TIME_GOAL'] },
-        primaryUserId: { not: null },
-      },
-      include: {
-        primaryUser: { select: { id: true, displayName: true } },
-        team: { select: { id: true, name: true, homeColour: true } },
-      },
-    }),
-    prisma.matchEvent.findMany({
-      where: {
-        match: { tournamentId: id },
-        type: { in: ['YELLOW_CARD', 'RED_CARD', 'SECOND_YELLOW'] },
-        primaryUserId: { not: null },
-      },
-      include: {
-        primaryUser: { select: { id: true, displayName: true } },
-        team: { select: { id: true, name: true, homeColour: true } },
-      },
-    }),
-    prisma.match.findMany({
-      where: { tournamentId: id, playerOfMatchId: { not: null } },
-      select: {
-        playerOfMatch: { select: { id: true, displayName: true } },
-        homeTeam: { select: { name: true } },
-        awayTeam: { select: { name: true } },
-      },
-    }),
-  ])
+  const [tournament, goalEvents, cardEvents, potmMatches] = await getTournamentDetailData(id)
 
   if (!tournament) notFound()
   if (!tournament.isPublished && !(await canManageTournament(id, user.id, user.role))) notFound()

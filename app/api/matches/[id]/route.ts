@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
 import { canManageTournament } from '@/services/tournaments'
 import { z } from 'zod'
+import { revalidateTag } from 'next/cache'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -78,6 +79,9 @@ export async function PATCH(req: NextRequest, { params }: Props) {
     },
   })
 
+  revalidateTag(`match-${id}`, {})
+  revalidateTag(`fixtures-${match.tournamentId}`, {})
+  revalidateTag(`tournament-${match.tournamentId}`, {})
   return NextResponse.json({ match: updated })
 }
 
@@ -97,5 +101,7 @@ export async function DELETE(_req: NextRequest, { params }: Props) {
   }
 
   await prisma.match.delete({ where: { id } })
+  revalidateTag(`fixtures-${match.tournamentId}`, {})
+  revalidateTag(`tournament-${match.tournamentId}`, {})
   return NextResponse.json({ success: true })
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSessionUser, requireAdmin } from '@/lib/rbac'
 import { z } from 'zod'
+import { revalidateTag } from 'next/cache'
 
 const createSchema = z.object({
   name: z.string().min(2).max(100),
@@ -86,5 +87,6 @@ export async function POST(req: NextRequest) {
     return t
   })
 
+  revalidateTag('tournaments-list', {})
   return NextResponse.json({ tournament }, { status: 201 })
 }
