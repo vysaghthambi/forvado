@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
 import { canManageTournament } from '@/services/tournaments'
 import { z } from 'zod'
+import { revalidateTag } from 'next/cache'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -27,8 +28,8 @@ export async function GET(_req: NextRequest, { params }: Props) {
   const match = await prisma.match.findUnique({
     where: { id },
     include: {
-      homeTeam: { select: { id: true, name: true, badgeUrl: true } },
-      awayTeam: { select: { id: true, name: true, badgeUrl: true } },
+      homeTeam: { select: { id: true, name: true, homeColour: true, badgeUrl: true, shortCode: true } },
+      awayTeam: { select: { id: true, name: true, homeColour: true, badgeUrl: true, shortCode: true } },
       tournament: { select: { id: true, name: true } },
       group: { select: { id: true, name: true } },
       events: {
@@ -73,11 +74,14 @@ export async function PATCH(req: NextRequest, { params }: Props) {
       ...(d.status ? { status: d.status, ...(d.status === 'COMPLETED' ? { completedAt: new Date() } : {}) } : {}),
     },
     include: {
-      homeTeam: { select: { id: true, name: true, badgeUrl: true } },
-      awayTeam: { select: { id: true, name: true, badgeUrl: true } },
+      homeTeam: { select: { id: true, name: true, homeColour: true, badgeUrl: true, shortCode: true } },
+      awayTeam: { select: { id: true, name: true, homeColour: true, badgeUrl: true, shortCode: true } },
     },
   })
 
+  revalidateTag(`match-${id}`, {})
+  revalidateTag(`fixtures-${match.tournamentId}`, {})
+  revalidateTag(`tournament-${match.tournamentId}`, {})
   return NextResponse.json({ match: updated })
 }
 
@@ -97,5 +101,7 @@ export async function DELETE(_req: NextRequest, { params }: Props) {
   }
 
   await prisma.match.delete({ where: { id } })
+  revalidateTag(`fixtures-${match.tournamentId}`, {})
+  revalidateTag(`tournament-${match.tournamentId}`, {})
   return NextResponse.json({ success: true })
 }

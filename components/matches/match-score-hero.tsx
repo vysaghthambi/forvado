@@ -10,7 +10,6 @@ interface Team {
   id: string
   name: string
   homeColour: string | null
-  awayColour: string | null
 }
 
 interface MatchEvent {
@@ -88,11 +87,11 @@ function EventRow({ event, side }: { event: MatchEvent; side: 'home' | 'away' })
 
   let playerName = ''
   if (event.type === 'SUBSTITUTION' && event.secondaryUser && event.primaryUser) {
-    const inName = event.secondaryUser.displayName.split(' ').at(-1) ?? '?'
-    const outName = event.primaryUser.displayName.split(' ').at(-1) ?? '?'
+    const inName = event.secondaryUser.displayName.split(' ')[0] ?? '?'
+    const outName = event.primaryUser.displayName.split(' ')[0] ?? '?'
     playerName = `${inName} ↔ ${outName}`
   } else {
-    playerName = event.primaryUser?.displayName.split(' ').at(-1) ?? '?'
+    playerName = event.primaryUser?.displayName.split(' ')[0] ?? '?'
     if (event.type === 'OWN_GOAL') playerName += ' (OG)'
   }
 
@@ -124,6 +123,8 @@ export function MatchScoreHero({ initialMatch, initialEvents = [], canManage = f
   const [match, setMatch] = useState(initialMatch)
   const [events, setEvents] = useState(initialEvents)
   const { display, isLive } = useMatchTimer(match)
+
+  useEffect(() => { setMatch(initialMatch) }, [initialMatch])
 
   const isLiveStatus = LIVE_STATUSES.includes(match.status)
   const isDone = ['COMPLETED', 'FULL_TIME', 'EXTRA_TIME_FULL_TIME', 'EXTRA_TIME_SECOND_HALF'].includes(match.status)
@@ -160,9 +161,9 @@ export function MatchScoreHero({ initialMatch, initialEvents = [], canManage = f
   const homeInitials = getInitials(match.homeTeam.name)
   const awayInitials = getInitials(match.awayTeam.name)
   const homeBg = match.homeTeam.homeColour ?? '#1e3a5f'
-  const homeFg = match.homeTeam.awayColour ?? '#7ab4ff'
+  const homeFg = '#7ab4ff'
   const awayBg = match.awayTeam.homeColour ?? '#1a2e1a'
-  const awayFg = match.awayTeam.awayColour ?? '#2ddb7f'
+  const awayFg = '#2ddb7f'
 
   const heroPadding = compact ? '18px 22px' : '22px 22px 0'
 
@@ -181,15 +182,18 @@ export function MatchScoreHero({ initialMatch, initialEvents = [], canManage = f
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', minWidth: 0 }}>
           <Link href={`/teams/${match.homeTeam.id}`} style={{ textDecoration: 'none' }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: compact ? 0 : 12, cursor: 'pointer' }}>
-              <div style={{
-                width: 58, height: 58, borderRadius: 13, fontSize: 18,
-                fontFamily: 'var(--font-heading), Rajdhani, sans-serif', fontWeight: 800,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: homeBg, color: homeFg, flexShrink: 0,
-              }}>
+              <div
+                className="w-10 h-10 sm:w-[58px] sm:h-[58px] text-[14px] sm:text-[18px]"
+                style={{
+                  borderRadius: 13,
+                  fontFamily: 'var(--font-heading), Rajdhani, sans-serif', fontWeight: 800,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: homeBg, color: homeFg, flexShrink: 0,
+                }}
+              >
                 {homeInitials}
               </div>
-              <div style={{ fontFamily: 'var(--font-heading), Rajdhani, sans-serif', fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>
+              <div className="text-[15px] sm:text-[20px]" style={{ fontFamily: 'var(--font-heading), Rajdhani, sans-serif', fontWeight: 700, color: 'var(--text)' }}>
                 {match.homeTeam.name}
               </div>
               {!compact && (
@@ -226,11 +230,14 @@ export function MatchScoreHero({ initialMatch, initialEvents = [], canManage = f
             </span>
           </div>
 
-          <div style={{
-            fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
-            fontSize: 52, fontWeight: 700, lineHeight: 1,
-            color: isDone ? 'var(--text)' : isLiveStatus ? 'var(--live)' : 'var(--text2)',
-          }}>
+          <div
+            className="text-[38px] sm:text-[52px]"
+            style={{
+              fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
+              fontWeight: 700, lineHeight: 1,
+              color: isDone ? 'var(--text)' : isLiveStatus ? 'var(--live)' : 'var(--text2)',
+            }}
+          >
             {match.homeScore} – {match.awayScore}
           </div>
 
@@ -272,15 +279,18 @@ export function MatchScoreHero({ initialMatch, initialEvents = [], canManage = f
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', minWidth: 0 }}>
           <Link href={`/teams/${match.awayTeam.id}`} style={{ textDecoration: 'none' }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: compact ? 0 : 12, cursor: 'pointer' }}>
-              <div style={{
-                width: 58, height: 58, borderRadius: 13, fontSize: 18,
-                fontFamily: 'var(--font-heading), Rajdhani, sans-serif', fontWeight: 800,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: awayBg, color: awayFg, flexShrink: 0,
-              }}>
+              <div
+                className="w-10 h-10 sm:w-[58px] sm:h-[58px] text-[14px] sm:text-[18px]"
+                style={{
+                  borderRadius: 13,
+                  fontFamily: 'var(--font-heading), Rajdhani, sans-serif', fontWeight: 800,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: awayBg, color: awayFg, flexShrink: 0,
+                }}
+              >
                 {awayInitials}
               </div>
-              <div style={{ fontFamily: 'var(--font-heading), Rajdhani, sans-serif', fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>
+              <div className="text-[15px] sm:text-[20px]" style={{ fontFamily: 'var(--font-heading), Rajdhani, sans-serif', fontWeight: 700, color: 'var(--text)' }}>
                 {match.awayTeam.name}
               </div>
               {!compact && (

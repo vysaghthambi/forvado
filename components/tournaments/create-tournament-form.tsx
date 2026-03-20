@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import { inputStyle, labelStyle } from '@/lib/styles'
 
 const schema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
@@ -32,27 +33,6 @@ interface Team {
 
 // ── Shared input styles ────────────────────────────────────────────────────────
 
-const inputStyle: React.CSSProperties = {
-  background: 'var(--bg2)',
-  border: '1px solid var(--border2)',
-  borderRadius: 8,
-  padding: '9px 12px',
-  fontSize: 13,
-  color: 'var(--text)',
-  outline: 'none',
-  width: '100%',
-  boxSizing: 'border-box',
-  fontFamily: 'inherit',
-  transition: 'border-color .15s',
-}
-
-const labelStyle: React.CSSProperties = {
-  fontSize: 10,
-  fontWeight: 600,
-  color: 'var(--muted-clr)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.5px',
-}
 
 function FormGroup({ children }: { children: React.ReactNode }) {
   return <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>{children}</div>

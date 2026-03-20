@@ -16,7 +16,7 @@ interface Group {
 }
 
 interface RegisteredTeam {
-  team: { id: string; name: string; badgeUrl: string | null; homeColour?: string | null }
+  team: { id: string; name: string; badgeUrl: string | null; homeColour?: string | null; shortCode?: string | null }
   group?: { id: string; name: string } | null
 }
 
@@ -49,7 +49,7 @@ function Spinner() {
   )
 }
 
-function TeamBadge({ name, colour }: { name: string; colour?: string | null }) {
+function TeamBadge({ name, colour, shortCode }: { name: string; colour?: string | null; shortCode?: string | null }) {
   const c = colour ?? '#2d3050'
   return (
     <div style={{
@@ -59,7 +59,7 @@ function TeamBadge({ name, colour }: { name: string; colour?: string | null }) {
       fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
       fontSize: 9, fontWeight: 700, color: c, letterSpacing: '0.5px',
     }}>
-      {name.slice(0, 3).toUpperCase()}
+      {shortCode ?? name.slice(0, 3).toUpperCase()}
     </div>
   )
 }
@@ -433,7 +433,7 @@ export function TournamentAdminPanel({ tournamentId, status, isPublished, coordi
                       padding: '7px 10px', borderRadius: 8,
                       border: '1px solid var(--border)', background: 'var(--bg3)',
                     }}>
-                      <TeamBadge name={team.name} colour={team.homeColour} />
+                      <TeamBadge name={team.name} colour={team.homeColour} shortCode={team.shortCode} />
                       <span style={{ flex: 1, fontSize: 12, color: 'var(--text)', minWidth: 0 }} className="truncate">{team.name}</span>
                       {group && <span style={{ fontSize: 10, color: 'var(--muted-clr)' }}>Grp {group.name}</span>}
                       <button

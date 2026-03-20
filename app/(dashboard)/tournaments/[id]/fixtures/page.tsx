@@ -5,6 +5,7 @@ import { canManageTournament, autoUpdateTournamentStatus } from '@/services/tour
 import { FixturesList } from '@/components/tournaments/fixtures-list'
 import { CreateFixtureDialog } from '@/components/tournaments/create-fixture-dialog'
 import Link from 'next/link'
+import { unstable_cache } from 'next/cache'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -14,33 +15,41 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 type Props = { params: Promise<{ id: string }> }
 
+function getFixturesData(id: string) {
+  return unstable_cache(
+    () => prisma.tournament.findUnique({
+      where: { id, deletedAt: null },
+      include: {
+        groups: {
+          include: { teams: { include: { team: { select: { id: true, name: true } } } } },
+          orderBy: { name: 'asc' },
+        },
+        teams: {
+          include: {
+            team: { select: { id: true, name: true, badgeUrl: true, homeColour: true, shortCode: true } },
+            group: { select: { id: true, name: true } },
+          },
+        },
+        matches: {
+          include: {
+            homeTeam: { select: { id: true, name: true, badgeUrl: true, homeColour: true, shortCode: true } },
+            awayTeam: { select: { id: true, name: true, badgeUrl: true, homeColour: true, shortCode: true } },
+            group: { select: { id: true, name: true } },
+          },
+          orderBy: { matchOrder: 'asc' },
+        },
+      },
+    }),
+    ['tournament-fixtures', id],
+    { tags: [`tournament-${id}`, `fixtures-${id}`] },
+  )()
+}
+
 export default async function TournamentFixturesPage({ params }: Props) {
   const user = await requireUser()
   const { id } = await params
 
-  const tournament = await prisma.tournament.findUnique({
-    where: { id, deletedAt: null },
-    include: {
-      groups: {
-        include: { teams: { include: { team: { select: { id: true, name: true } } } } },
-        orderBy: { name: 'asc' },
-      },
-      teams: {
-        include: {
-          team: { select: { id: true, name: true, badgeUrl: true, homeColour: true } },
-          group: { select: { id: true, name: true } },
-        },
-      },
-      matches: {
-        include: {
-          homeTeam: { select: { id: true, name: true, badgeUrl: true, homeColour: true } },
-          awayTeam: { select: { id: true, name: true, badgeUrl: true, homeColour: true } },
-          group: { select: { id: true, name: true } },
-        },
-        orderBy: { matchOrder: 'asc' },
-      },
-    },
-  })
+  const tournament = await getFixturesData(id)
 
   if (!tournament) notFound()
   if (!tournament.isPublished && !(await canManageTournament(id, user.id, user.role))) notFound()
@@ -53,7 +62,7 @@ export default async function TournamentFixturesPage({ params }: Props) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 960, margin: '0 auto' }}>
 
       {/* Breadcrumb */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted-clr)' }}>
+      <div className="hidden sm:flex" style={{ alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted-clr)' }}>
         <Link href="/tournaments" className="no-underline transition-colors hover:text-foreground" style={{ color: 'var(--muted-clr)' }}>
           Tournaments
         </Link>
@@ -90,13 +99,14 @@ export default async function TournamentFixturesPage({ params }: Props) {
               matchTime={tournament.matchTime}
               playingMembers={tournament.playingMembers}
               maxSubstitutes={tournament.maxSubstitutes}
+              venue={tournament.venue ?? ''}
             />
           )}
         </div>
       </div>
 
       {/* Full fixtures list */}
-      <FixturesList matches={tournament.matches} showGroup={tournament.format === 'GROUP_KNOCKOUT'} />
+      <FixturesList matches={tournament.matches} showGroup={tournament.format === 'GROUP_KNOCKOUT'} canManage={canManage} />
     </div>
   )
 }

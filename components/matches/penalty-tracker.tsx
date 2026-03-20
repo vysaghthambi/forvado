@@ -2,12 +2,10 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { Loader2, Check, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { inputStyle, labelStyle } from '@/lib/styles'
 
 interface Player { id: string; displayName: string; jerseyNumber: number; teamId: string }
 interface Team { id: string; name: string }
@@ -30,12 +28,28 @@ interface Props {
   canEdit?: boolean
 }
 
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+      <div style={labelStyle}>{label}</div>
+      {children}
+    </div>
+  )
+}
+
+function onFocus(e: React.FocusEvent<HTMLSelectElement>) {
+  e.target.style.borderColor = 'var(--accent-clr)'
+}
+function onBlur(e: React.FocusEvent<HTMLSelectElement>) {
+  e.target.style.borderColor = 'var(--border2)'
+}
+
 export function PenaltyTracker({ matchId, status, homeTeam, awayTeam, players, initialKicks, canEdit = false }: Props) {
   const router = useRouter()
   const [kicks, setKicks] = useState(initialKicks)
   const [teamId, setTeamId] = useState('')
   const [userId, setUserId] = useState('')
-  const [scored, setScored] = useState<string>('')
+  const [scored, setScored] = useState('')
   const [loading, setLoading] = useState(false)
 
   const homeKicks = kicks.filter((k) => k.team.id === homeTeam.id)
@@ -77,19 +91,33 @@ export function PenaltyTracker({ matchId, status, homeTeam, awayTeam, players, i
 
   function KickList({ team, teamKicks }: { team: Team; teamKicks: Kick[] }) {
     return (
-      <div className="space-y-1">
-        <p className="text-xs font-semibold text-muted-foreground uppercase">{team.name}</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted-clr)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>
+          {team.name}
+        </p>
         {teamKicks.length === 0 ? (
-          <p className="text-xs text-muted-foreground italic">No kicks yet</p>
+          <p style={{ fontSize: 12, color: 'var(--muted-clr)', fontStyle: 'italic' }}>No kicks yet</p>
         ) : (
           teamKicks.map((k) => (
-            <div key={k.id} className="flex items-center gap-2 text-sm">
-              <span className={cn('h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0', k.scored ? 'bg-green-500/20 text-green-400' : 'bg-destructive/20 text-destructive')}>
-                {k.scored ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+            <div key={k.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+              <div className={cn(
+                'h-5 w-5 rounded-full flex items-center justify-center shrink-0',
+                k.scored ? 'bg-green-500/20 text-green-400' : 'bg-destructive/20 text-destructive'
+              )}>
+                {k.scored ? <Check size={11} /> : <X size={11} />}
+              </div>
+              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text)' }}>
+                {k.user?.displayName ?? 'Unknown'}
               </span>
-              <span className="flex-1 truncate">{k.user?.displayName ?? 'Unknown'}</span>
               {canEdit && (
-                <button onClick={() => removeKick(k.id)} className="text-xs text-muted-foreground hover:text-destructive">✕</button>
+                <button
+                  onClick={() => removeKick(k.id)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted-clr)', padding: 0, fontSize: 12 }}
+                  onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.color = 'var(--live)'}
+                  onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.color = 'var(--muted-clr)'}
+                >
+                  ✕
+                </button>
               )}
             </div>
           ))
@@ -99,59 +127,89 @@ export function PenaltyTracker({ matchId, status, homeTeam, awayTeam, players, i
   }
 
   return (
-    <div className="rounded-xl border border-border/50 bg-card p-5 space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Penalty Shootout</h3>
-        <span className="text-2xl font-black tabular-nums">{homeGoals} – {awayGoals}</span>
+    <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+      {/* Header */}
+      <div style={{ padding: '13px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontFamily: 'var(--font-heading), Rajdhani, sans-serif', fontSize: 13, fontWeight: 700, letterSpacing: '.5px', textTransform: 'uppercase', color: 'var(--text2)' }}>
+          Penalty Shootout
+        </span>
+        <span style={{ fontFamily: 'var(--font-heading), Rajdhani, sans-serif', fontSize: 22, fontWeight: 900, color: 'var(--text)', letterSpacing: '2px' }}>
+          {homeGoals} – {awayGoals}
+        </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
-        <KickList team={homeTeam} teamKicks={homeKicks} />
-        <KickList team={awayTeam} teamKicks={awayKicks} />
-      </div>
-
-      {canEdit && status === 'PENALTY_SHOOTOUT' && (
-        <div className="border-t border-border/30 pt-4 space-y-3">
-          <h4 className="text-xs font-semibold text-muted-foreground">Log Kick</h4>
-          <div className="grid grid-cols-3 gap-2">
-            <div className="space-y-1">
-              <Label className="text-xs">Team</Label>
-              <Select value={teamId} onValueChange={(v) => { setTeamId(v); setUserId('') }}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Team" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={homeTeam.id}>{homeTeam.name}</SelectItem>
-                  <SelectItem value={awayTeam.id}>{awayTeam.name}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Player</Label>
-              <Select value={userId || 'none'} onValueChange={(v) => setUserId(v === 'none' ? '' : v)} disabled={!teamId}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Optional" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">— Unknown —</SelectItem>
-                  {teamPlayers.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>#{p.jerseyNumber} {p.displayName}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Result</Label>
-              <Select value={scored} onValueChange={setScored}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Result" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="true">✅ Scored</SelectItem>
-                  <SelectItem value="false">❌ Missed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <Button size="sm" className="w-full" onClick={addKick} disabled={loading || !teamId || scored === ''}>
-            {loading ? <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />Logging...</> : 'Log Kick'}
-          </Button>
+      <div style={{ padding: '14px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {/* Kick lists */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+          <KickList team={homeTeam} teamKicks={homeKicks} />
+          <KickList team={awayTeam} teamKicks={awayKicks} />
         </div>
-      )}
+
+        {/* Log kick form */}
+        {canEdit && status === 'PENALTY_SHOOTOUT' && (
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted-clr)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Log Kick
+            </span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+              <Field label="Team">
+                <select
+                  value={teamId}
+                  onChange={(e) => { setTeamId(e.target.value); setUserId('') }}
+                  style={{ ...inputStyle, cursor: 'pointer' }}
+                  onFocus={onFocus} onBlur={onBlur}
+                >
+                  <option value="">Team…</option>
+                  <option value={homeTeam.id}>{homeTeam.name}</option>
+                  <option value={awayTeam.id}>{awayTeam.name}</option>
+                </select>
+              </Field>
+              <Field label="Player">
+                <select
+                  value={userId}
+                  onChange={(e) => setUserId(e.target.value)}
+                  disabled={!teamId}
+                  style={{ ...inputStyle, cursor: !teamId ? 'not-allowed' : 'pointer', opacity: !teamId ? 0.5 : 1 }}
+                  onFocus={onFocus} onBlur={onBlur}
+                >
+                  <option value="">Unknown</option>
+                  {teamPlayers.map((p) => (
+                    <option key={p.id} value={p.id}>#{p.jerseyNumber} {p.displayName}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Result">
+                <select
+                  value={scored}
+                  onChange={(e) => setScored(e.target.value)}
+                  style={{ ...inputStyle, cursor: 'pointer' }}
+                  onFocus={onFocus} onBlur={onBlur}
+                >
+                  <option value="">Result…</option>
+                  <option value="true">✅ Scored</option>
+                  <option value="false">❌ Missed</option>
+                </select>
+              </Field>
+            </div>
+            <button
+              type="button"
+              onClick={addKick}
+              disabled={loading || !teamId || scored === ''}
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                width: '100%', padding: '9px 0', borderRadius: 8,
+                background: (loading || !teamId || scored === '') ? 'var(--bg3)' : 'var(--accent-clr)',
+                color: (loading || !teamId || scored === '') ? 'var(--muted-clr)' : '#000',
+                fontSize: 13, fontWeight: 600, border: 'none',
+                cursor: (loading || !teamId || scored === '') ? 'not-allowed' : 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              {loading ? <><Loader2 size={14} className="animate-spin" /> Logging…</> : 'Log Kick'}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

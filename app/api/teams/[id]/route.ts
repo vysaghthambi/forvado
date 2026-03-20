@@ -8,7 +8,7 @@ const updateSchema = z.object({
   name: z.string().min(2).max(60).optional(),
   description: z.string().max(500).nullable().optional(),
   homeColour: z.string().regex(/^#[0-9A-Fa-f]{6}$/).nullable().optional(),
-  awayColour: z.string().regex(/^#[0-9A-Fa-f]{6}$/).nullable().optional(),
+  shortCode: z.string().min(2).max(3).regex(/^[A-Z]{2,3}$/).nullable().optional(),
   badgeUrl: z.string().url().nullable().optional(),
   isAcceptingRequests: z.boolean().optional(),
 })

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { format, isToday, isTomorrow, startOfDay } from 'date-fns'
 import { MATCH_STATUS_LABEL } from '@/lib/labels'
+import { EditFixtureDialog } from './edit-fixture-dialog'
 
 const LIVE_STATUSES = new Set([
   'FIRST_HALF', 'HALF_TIME', 'SECOND_HALF',
@@ -16,6 +17,7 @@ interface MatchTeam {
   name: string
   badgeUrl: string | null
   homeColour?: string | null
+  shortCode?: string | null
 }
 
 interface Match {
@@ -27,6 +29,8 @@ interface Match {
   status: string
   homeScore: number
   awayScore: number
+  homePenaltyScore?: number | null
+  awayPenaltyScore?: number | null
   homeTeam: MatchTeam
   awayTeam: MatchTeam
   group?: { id: string; name: string } | null
@@ -38,6 +42,7 @@ interface Props {
   noGroup?: boolean
   /** Strip outer card wrapper (use when already inside a card) */
   naked?: boolean
+  canManage?: boolean
 }
 
 function getDateLabel(date: Date): string {
@@ -73,12 +78,12 @@ function TeamBadge({ team }: { team: MatchTeam }) {
       fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
       fontSize: 9, fontWeight: 700, color: colour, letterSpacing: '0.5px',
     }}>
-      {team.name.slice(0, 3).toUpperCase()}
+      {team.shortCode ?? team.name.slice(0, 3).toUpperCase()}
     </div>
   )
 }
 
-function MatchItem({ m, isLast, showGroup }: { m: Match; isLast: boolean; showGroup: boolean }) {
+function MatchItem({ m, isLast, showGroup, canManage }: { m: Match; isLast: boolean; showGroup: boolean; canManage: boolean }) {
   const isLive = LIVE_STATUSES.has(m.status)
   const isCompleted = COMPLETED_STATUSES.has(m.status)
   const isScheduled = !isLive && !isCompleted
@@ -94,88 +99,114 @@ function MatchItem({ m, isLast, showGroup }: { m: Match; isLast: boolean; showGr
     m.round ?? null,
   ].filter(Boolean).join(' · ')
 
+  const showEdit = canManage && isScheduled
+
   return (
-    <Link href={`/matches/${m.id}`} className="block no-underline group">
-      <div
-        className="group-hover:bg-white/[0.025] transition-colors"
-        style={{ padding: '12px 15px', borderBottom: isLast ? 'none' : '1px solid rgba(35,38,56,.5)' }}
-      >
-        {/* Meta row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-          {isLive && (
-            <span
-              className="animate-pulse"
-              style={{ display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: 'var(--live)', flexShrink: 0 }}
-            />
-          )}
-          <span style={{
-            fontSize: 10, fontWeight: 600,
-            color: isLive ? 'var(--live)' : 'var(--muted-clr)',
-            textTransform: 'uppercase', letterSpacing: '0.4px',
-            fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
-          }}>
-            {isLive ? `LIVE · ${metaText}` : metaText}
-          </span>
-          {roundLabel && (
-            <>
-              <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--border2)', display: 'inline-block', flexShrink: 0 }} />
-              <span style={{ fontSize: 10, color: 'var(--muted-clr)' }}>{roundLabel}</span>
-            </>
-          )}
-        </div>
-
-        {/* Teams + score */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {/* Home */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7, flex: 1, minWidth: 0, justifyContent: 'flex-end' }}>
-            <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)', textAlign: 'right' }} className="truncate">
-              {m.homeTeam.name}
+    <div style={{ position: 'relative', borderBottom: isLast ? 'none' : '1px solid rgba(35,38,56,.5)' }}>
+      <Link href={`/matches/${m.id}`} className="block no-underline group">
+        <div
+          className="group-hover:bg-white/[0.025] transition-colors"
+          style={{ padding: '12px 15px', paddingRight: showEdit ? 46 : 15 }}
+        >
+          {/* Meta row */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+            {isLive && (
+              <span
+                className="animate-pulse"
+                style={{ display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: 'var(--live)', flexShrink: 0 }}
+              />
+            )}
+            <span style={{
+              fontSize: 10, fontWeight: 600,
+              color: isLive ? 'var(--live)' : 'var(--muted-clr)',
+              textTransform: 'uppercase', letterSpacing: '0.4px',
+              fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
+            }}>
+              {isLive ? `LIVE · ${metaText}` : metaText}
             </span>
-            <TeamBadge team={m.homeTeam} />
+            {roundLabel && (
+              <>
+                <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--border2)', display: 'inline-block', flexShrink: 0 }} />
+                <span style={{ fontSize: 10, color: 'var(--muted-clr)' }}>{roundLabel}</span>
+              </>
+            )}
           </div>
 
-          {/* Score box */}
-          {isScheduled ? (
-            <div style={{
-              flexShrink: 0, padding: '4px 10px', borderRadius: 6,
-              border: '1px solid var(--border)', background: 'var(--bg2)',
-              fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
-              fontSize: 13, fontWeight: 600, color: 'var(--muted-clr)',
-              letterSpacing: '1px',
-            }}>
-              vs
+          {/* Teams + score */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Home */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, flex: 1, minWidth: 0, justifyContent: 'flex-end' }}>
+              <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)', textAlign: 'right' }} className="truncate">
+                {m.homeTeam.name}
+              </span>
+              <TeamBadge team={m.homeTeam} />
             </div>
-          ) : (
-            <div style={{
-              flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4,
-              padding: '4px 8px', borderRadius: 6,
-              border: `1px solid ${isLive ? 'var(--live)' : 'var(--border)'}`,
-              background: isLive ? 'var(--live-dim)' : 'var(--bg2)',
-              fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
-              fontSize: 18, fontWeight: 700,
-              color: isLive ? 'var(--live)' : 'var(--text)',
-              lineHeight: 1, letterSpacing: '1px',
-            }}>
-              <span>{m.homeScore}</span>
-              <span style={{ fontSize: 14, color: 'var(--muted-clr)', fontWeight: 400 }}>–</span>
-              <span>{m.awayScore}</span>
-            </div>
-          )}
 
-          {/* Away */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7, flex: 1, minWidth: 0 }}>
-            <TeamBadge team={m.awayTeam} />
-            <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)' }} className="truncate">
-              {m.awayTeam.name}
-            </span>
+            {/* Score box */}
+            {isScheduled ? (
+              <div style={{
+                flexShrink: 0, padding: '4px 10px', borderRadius: 6,
+                border: '1px solid var(--border)', background: 'var(--bg2)',
+                fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
+                fontSize: 13, fontWeight: 600, color: 'var(--muted-clr)',
+                letterSpacing: '1px',
+              }}>
+                vs
+              </div>
+            ) : (
+              <div style={{
+                flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center',
+                padding: '4px 8px', borderRadius: 6,
+                border: `1px solid ${isLive ? 'var(--live)' : 'var(--border)'}`,
+                background: isLive ? 'var(--live-dim)' : 'var(--bg2)',
+              }}>
+                <div style={{
+                  fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
+                  fontSize: 18, fontWeight: 700,
+                  color: isLive ? 'var(--live)' : 'var(--text)',
+                  lineHeight: 1, letterSpacing: '1px',
+                  display: 'flex', alignItems: 'center', gap: 4,
+                }}>
+                  <span>{m.homeScore}</span>
+                  <span style={{ fontSize: 14, color: 'var(--muted-clr)', fontWeight: 400 }}>–</span>
+                  <span>{m.awayScore}</span>
+                </div>
+                {m.homePenaltyScore !== null && m.homePenaltyScore !== undefined && (
+                  <div style={{ fontSize: 9, color: 'var(--muted-clr)', marginTop: 1 }}>
+                    ({m.homePenaltyScore} – {m.awayPenaltyScore} pens)
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Away */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, flex: 1, minWidth: 0 }}>
+              <TeamBadge team={m.awayTeam} />
+              <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)' }} className="truncate">
+                {m.awayTeam.name}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
-    </Link>
+      </Link>
+      {showEdit && (
+        <div
+          style={{ position: 'absolute', top: '50%', right: 10, transform: 'translateY(-50%)' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <EditFixtureDialog
+            matchId={m.id}
+            scheduledAt={typeof m.scheduledAt === 'string' ? m.scheduledAt : m.scheduledAt.toISOString()}
+            venue={m.venue}
+            round={m.round}
+          />
+        </div>
+      )}
+    </div>
   )
 }
 
-export function FixturesList({ matches, showGroup = false, noGroup = false, naked = false }: Props) {
+export function FixturesList({ matches, showGroup = false, noGroup = false, naked = false, canManage = false }: Props) {
   if (matches.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2" style={{ padding: '36px 20px', textAlign: 'center' }}>
@@ -193,7 +224,7 @@ export function FixturesList({ matches, showGroup = false, noGroup = false, nake
       return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
     })
     const inner = sorted.map((m, i) => (
-      <MatchItem key={m.id} m={m} isLast={i === sorted.length - 1} showGroup={showGroup} />
+      <MatchItem key={m.id} m={m} isLast={i === sorted.length - 1} showGroup={showGroup} canManage={canManage} />
     ))
     if (naked) return <div>{inner}</div>
     return (
@@ -223,7 +254,7 @@ export function FixturesList({ matches, showGroup = false, noGroup = false, nake
           {/* Match cards */}
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
             {groupMatches.map((m, i) => (
-              <MatchItem key={m.id} m={m} isLast={i === groupMatches.length - 1} showGroup={showGroup} />
+              <MatchItem key={m.id} m={m} isLast={i === groupMatches.length - 1} showGroup={showGroup} canManage={canManage} />
             ))}
           </div>
         </div>

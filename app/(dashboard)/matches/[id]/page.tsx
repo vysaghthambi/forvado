@@ -6,6 +6,7 @@ import { MatchScoreHero } from '@/components/matches/match-score-hero'
 import { PenaltyTracker } from '@/components/matches/penalty-tracker'
 import Link from 'next/link'
 import { format } from 'date-fns'
+import { unstable_cache } from 'next/cache'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -72,42 +73,50 @@ const tdStyle: React.CSSProperties = {
   padding: '8px 12px', fontSize: 12, color: 'var(--text)', borderBottom: '1px solid var(--border)',
 }
 
+function getMatchData(id: string) {
+  return unstable_cache(
+    () => prisma.match.findUnique({
+      where: { id },
+      include: {
+        homeTeam: { select: { id: true, name: true, homeColour: true, shortCode: true } },
+        awayTeam: { select: { id: true, name: true, homeColour: true, shortCode: true } },
+        tournament: { select: { id: true, name: true } },
+        playerOfMatch: { select: { id: true, displayName: true } },
+        group: { select: { id: true, name: true } },
+        events: {
+          include: {
+            primaryUser: { select: { id: true, displayName: true } },
+            secondaryUser: { select: { id: true, displayName: true } },
+            team: { select: { id: true, name: true } },
+          },
+          orderBy: { minute: 'asc' },
+        },
+        lineups: {
+          include: {
+            user: { select: { id: true, displayName: true, avatarUrl: true } },
+            team: { select: { id: true, name: true } },
+          },
+          orderBy: [{ isSubstitute: 'asc' }, { jerseyNumber: 'asc' }],
+        },
+        penalties: {
+          include: {
+            user: { select: { id: true, displayName: true } },
+            team: { select: { id: true, name: true } },
+          },
+          orderBy: [{ teamId: 'asc' }, { kickOrder: 'asc' }],
+        },
+      },
+    }),
+    ['match-detail', id],
+    { tags: [`match-${id}`] },
+  )()
+}
+
 export default async function MatchPage({ params }: Props) {
   const user = await requireUser()
   const { id } = await params
 
-  const match = await prisma.match.findUnique({
-    where: { id },
-    include: {
-      homeTeam: { select: { id: true, name: true, homeColour: true, awayColour: true } },
-      awayTeam: { select: { id: true, name: true, homeColour: true, awayColour: true } },
-      tournament: { select: { id: true, name: true } },
-      playerOfMatch: { select: { id: true, displayName: true } },
-      group: { select: { id: true, name: true } },
-      events: {
-        include: {
-          primaryUser: { select: { id: true, displayName: true } },
-          secondaryUser: { select: { id: true, displayName: true } },
-          team: { select: { id: true, name: true } },
-        },
-        orderBy: { minute: 'asc' },
-      },
-      lineups: {
-        include: {
-          user: { select: { id: true, displayName: true, avatarUrl: true } },
-          team: { select: { id: true, name: true } },
-        },
-        orderBy: [{ isSubstitute: 'asc' }, { jerseyNumber: 'asc' }],
-      },
-      penalties: {
-        include: {
-          user: { select: { id: true, displayName: true } },
-          team: { select: { id: true, name: true } },
-        },
-        orderBy: [{ teamId: 'asc' }, { kickOrder: 'asc' }],
-      },
-    },
-  })
+  const match = await getMatchData(id)
 
   if (!match) notFound()
 
@@ -140,8 +149,8 @@ export default async function MatchPage({ params }: Props) {
   }))
 
   // Team colour for lineup dot
-  const homeFg = match.homeTeam.awayColour ?? '#7ab4ff'
-  const awayFg = match.awayTeam.awayColour ?? '#2ddb7f'
+  const homeFg = '#7ab4ff'
+  const awayFg = '#2ddb7f'
 
   const sectionLbl: React.CSSProperties = {
     padding: '10px 14px 4px',
@@ -192,7 +201,7 @@ export default async function MatchPage({ params }: Props) {
     <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
       {/* Breadcrumb */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted-clr)' }}>
+      <div className="hidden sm:flex" style={{ alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted-clr)' }}>
         <Link href="/tournaments" style={{ color: 'var(--text2)', textDecoration: 'none' }}>
           Tournaments
         </Link>
@@ -216,18 +225,18 @@ export default async function MatchPage({ params }: Props) {
           homePenaltyScore: match.homePenaltyScore,
           awayPenaltyScore: match.awayPenaltyScore,
           matchTime: match.matchTime,
-          firstHalfStartedAt: match.firstHalfStartedAt?.toISOString() ?? null,
-          halfTimeAt: match.halfTimeAt?.toISOString() ?? null,
-          secondHalfStartedAt: match.secondHalfStartedAt?.toISOString() ?? null,
-          fullTimeAt: match.fullTimeAt?.toISOString() ?? null,
-          etFirstHalfStartedAt: match.etFirstHalfStartedAt?.toISOString() ?? null,
-          etHalfTimeAt: match.etHalfTimeAt?.toISOString() ?? null,
-          etSecondHalfStartedAt: match.etSecondHalfStartedAt?.toISOString() ?? null,
-          etFullTimeAt: match.etFullTimeAt?.toISOString() ?? null,
-          penaltyStartedAt: match.penaltyStartedAt?.toISOString() ?? null,
-          completedAt: match.completedAt?.toISOString() ?? null,
+          firstHalfStartedAt: match.firstHalfStartedAt ? new Date(match.firstHalfStartedAt).toISOString() : null,
+          halfTimeAt: match.halfTimeAt ? new Date(match.halfTimeAt).toISOString() : null,
+          secondHalfStartedAt: match.secondHalfStartedAt ? new Date(match.secondHalfStartedAt).toISOString() : null,
+          fullTimeAt: match.fullTimeAt ? new Date(match.fullTimeAt).toISOString() : null,
+          etFirstHalfStartedAt: match.etFirstHalfStartedAt ? new Date(match.etFirstHalfStartedAt).toISOString() : null,
+          etHalfTimeAt: match.etHalfTimeAt ? new Date(match.etHalfTimeAt).toISOString() : null,
+          etSecondHalfStartedAt: match.etSecondHalfStartedAt ? new Date(match.etSecondHalfStartedAt).toISOString() : null,
+          etFullTimeAt: match.etFullTimeAt ? new Date(match.etFullTimeAt).toISOString() : null,
+          penaltyStartedAt: match.penaltyStartedAt ? new Date(match.penaltyStartedAt).toISOString() : null,
+          completedAt: match.completedAt ? new Date(match.completedAt).toISOString() : null,
           venue: match.venue,
-          scheduledAt: match.scheduledAt.toISOString(),
+          scheduledAt: new Date(match.scheduledAt).toISOString(),
           homeTeam: match.homeTeam,
           awayTeam: match.awayTeam,
           group: match.group,

@@ -21,16 +21,16 @@ interface LiveMatch {
   etFullTimeAt: string | null
   penaltyStartedAt: string | null
   completedAt: string | null
-  homeTeam: { id: string; name: string; badgeUrl: string | null; homeColour: string | null }
-  awayTeam: { id: string; name: string; badgeUrl: string | null; homeColour: string | null }
+  homeTeam: { id: string; name: string; badgeUrl: string | null; homeColour: string | null; shortCode?: string | null }
+  awayTeam: { id: string; name: string; badgeUrl: string | null; homeColour: string | null; shortCode?: string | null }
   tournament: { id: string; name: string }
   round: string | null
 }
 
-function TeamBadge({ team }: { team: { name: string; badgeUrl: string | null; homeColour: string | null } }) {
+function TeamBadge({ team }: { team: { name: string; badgeUrl: string | null; homeColour: string | null; shortCode?: string | null } }) {
   const colour = team.homeColour ?? '#2d3050'
   const bg = colour + '33' // ~20% alpha
-  const initials = team.name.slice(0, 3).toUpperCase()
+  const initials = team.shortCode ?? team.name.slice(0, 3).toUpperCase()
   return (
     <div
       style={{

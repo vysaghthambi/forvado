@@ -13,7 +13,7 @@ export default async function NewTournamentPage() {
     <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       {/* Breadcrumb */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted-clr)' }}>
+      <div className="hidden sm:flex" style={{ alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted-clr)' }}>
         <Link href="/tournaments" className="no-underline transition-colors hover:text-foreground" style={{ color: 'var(--muted-clr)' }}>
           Tournaments
         </Link>

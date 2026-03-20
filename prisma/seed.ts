@@ -35,14 +35,14 @@ const TEAM_OWNERS = [
 ]
 
 const TEAMS = [
-  { name: 'Red Lions FC',       homeColour: '#CC0000', awayColour: '#FFFFFF' },
-  { name: 'Blue Warriors',      homeColour: '#0033CC', awayColour: '#FFCC00' },
-  { name: 'Green Falcons',      homeColour: '#006600', awayColour: '#FFFFFF' },
-  { name: 'Golden Eagles',      homeColour: '#FFAA00', awayColour: '#000000' },
-  { name: 'Black Panthers',     homeColour: '#111111', awayColour: '#FFFFFF' },
-  { name: 'White Wolves',       homeColour: '#FFFFFF', awayColour: '#333333' },
-  { name: 'Thunder Strikers',   homeColour: '#6600CC', awayColour: '#FFFF00' },
-  { name: 'Storm United',       homeColour: '#005577', awayColour: '#FF6600' },
+  { name: 'Red Lions FC',       homeColour: '#CC0000', shortCode: 'RLF' },
+  { name: 'Blue Warriors',      homeColour: '#0033CC', shortCode: 'BLW' },
+  { name: 'Green Falcons',      homeColour: '#006600', shortCode: 'GRF' },
+  { name: 'Golden Eagles',      homeColour: '#FFAA00', shortCode: 'GEA' },
+  { name: 'Black Panthers',     homeColour: '#111111', shortCode: 'BLP' },
+  { name: 'White Wolves',       homeColour: '#FFFFFF', shortCode: 'WLW' },
+  { name: 'Thunder Strikers',   homeColour: '#6600CC', shortCode: 'THS' },
+  { name: 'Storm United',       homeColour: '#005577', shortCode: 'STU' },
 ]
 
 // 11 player slots per team: positions cycle GK / DEF×3 / MID×4 / FWD×3
@@ -89,7 +89,7 @@ async function main() {
         data: {
           name:                t.name,
           homeColour:          t.homeColour,
-          awayColour:          t.awayColour,
+          shortCode:           t.shortCode,
           ownerId:             owner.id,
           isAcceptingRequests: false,
         },

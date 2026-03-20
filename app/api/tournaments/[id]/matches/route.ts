@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
 import { canManageTournament } from '@/services/tournaments'
 import { z } from 'zod'
+import { revalidateTag } from 'next/cache'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -35,8 +36,8 @@ export async function GET(req: NextRequest, { params }: Props) {
       ...(round ? { round } : {}),
     },
     include: {
-      homeTeam: { select: { id: true, name: true, badgeUrl: true } },
-      awayTeam: { select: { id: true, name: true, badgeUrl: true } },
+      homeTeam: { select: { id: true, name: true, badgeUrl: true, shortCode: true } },
+      awayTeam: { select: { id: true, name: true, badgeUrl: true, shortCode: true } },
       group: { select: { id: true, name: true } },
     },
     orderBy: { matchOrder: 'asc' },
@@ -123,10 +124,12 @@ export async function POST(req: NextRequest, { params }: Props) {
       maxSubstitutes: d.maxSubstitutes ? parseInt(d.maxSubstitutes) : tournament.maxSubstitutes,
     },
     include: {
-      homeTeam: { select: { id: true, name: true, badgeUrl: true } },
-      awayTeam: { select: { id: true, name: true, badgeUrl: true } },
+      homeTeam: { select: { id: true, name: true, badgeUrl: true, shortCode: true } },
+      awayTeam: { select: { id: true, name: true, badgeUrl: true, shortCode: true } },
     },
   })
 
+  revalidateTag(`tournament-${id}`, {})
+  revalidateTag(`fixtures-${id}`, {})
   return NextResponse.json({ match }, { status: 201 })
 }

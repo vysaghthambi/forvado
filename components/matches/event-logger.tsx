@@ -2,13 +2,10 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { Loader2, Plus } from 'lucide-react'
 import { computeElapsedMinutes } from '@/hooks/use-match-timer'
+import { inputStyle, labelStyle } from '@/lib/styles'
 
 interface Player {
   id: string
@@ -39,16 +36,33 @@ interface Props {
 }
 
 const EVENT_TYPES = [
-  { value: 'GOAL', label: '⚽ Goal' },
-  { value: 'OWN_GOAL', label: '⚽ Own Goal' },
-  { value: 'EXTRA_TIME_GOAL', label: '⚽ ET Goal' },
-  { value: 'YELLOW_CARD', label: '🟨 Yellow Card' },
-  { value: 'RED_CARD', label: '🟥 Red Card' },
+  { value: 'GOAL',          label: '⚽ Goal' },
+  { value: 'OWN_GOAL',      label: '⚽ Own Goal' },
+  { value: 'YELLOW_CARD',   label: '🟨 Yellow Card' },
+  { value: 'RED_CARD',      label: '🟥 Red Card' },
   { value: 'SECOND_YELLOW', label: '🟨🟥 2nd Yellow' },
-  { value: 'SUBSTITUTION', label: '🔄 Substitution' },
+  { value: 'SUBSTITUTION',  label: '🔄 Substitution' },
 ]
 
 const ACTIVE_PHASES = ['FIRST_HALF', 'SECOND_HALF', 'EXTRA_TIME_FIRST_HALF', 'EXTRA_TIME_SECOND_HALF']
+
+function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+      <div style={labelStyle}>
+        {label}{required && <span style={{ color: 'var(--live)', marginLeft: 3 }}>*</span>}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function onFocus(e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) {
+  e.target.style.borderColor = 'var(--accent-clr)'
+}
+function onBlur(e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) {
+  e.target.style.borderColor = 'var(--border2)'
+}
 
 export function EventLogger({ matchId, status, homeTeam, awayTeam, players, timestamps }: Props) {
   const router = useRouter()
@@ -62,8 +76,9 @@ export function EventLogger({ matchId, status, homeTeam, awayTeam, players, time
   const [loading, setLoading] = useState(false)
 
   const isActive = ACTIVE_PHASES.includes(status)
+  const isPenalty = status === 'PENALTY_SHOOTOUT'
   const teamPlayers = players.filter((p) => p.teamId === teamId)
-  const needsSecondary = type === 'GOAL' || type === 'EXTRA_TIME_GOAL' || type === 'SUBSTITUTION'
+  const needsSecondary = type === 'GOAL' || type === 'SUBSTITUTION'
   const secondaryLabel = type === 'SUBSTITUTION' ? 'Player In' : 'Assist (optional)'
 
   async function handleSubmit(e: React.FormEvent) {
@@ -91,80 +106,115 @@ export function EventLogger({ matchId, status, homeTeam, awayTeam, players, time
     router.refresh()
   }
 
+  // During penalty shootout, penalty tracker handles input — hide this section entirely
+  if (isPenalty) return null
+
   if (!isActive) {
     return (
-      <div className="rounded-xl border border-border/50 bg-card p-4 text-center">
-        <p className="text-xs text-muted-foreground">Events can only be logged during active phases.</p>
+      <div style={{
+        background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12,
+        padding: '16px 20px', textAlign: 'center',
+      }}>
+        <p style={{ fontSize: 12, color: 'var(--muted-clr)' }}>Events can only be logged during active phases.</p>
       </div>
     )
   }
 
+  const playerLabel = type === 'SUBSTITUTION' ? 'Player Out' : (type === 'GOAL' || type === 'OWN_GOAL') ? 'Scorer' : 'Player'
+
   return (
-    <div className="rounded-xl border border-border/50 bg-card p-5 space-y-4">
-      <h3 className="text-sm font-semibold">Log Event</h3>
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <Label className="text-xs">Type *</Label>
-            <Select value={type} onValueChange={(v) => { setType(v); setPrimaryUserId(''); setSecondaryUserId('') }}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Event type" /></SelectTrigger>
-              <SelectContent>
-                {EVENT_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Minute *</Label>
-            <Input type="number" min={0} max={200} value={minute} onChange={(e) => setMinute(e.target.value)} className="h-8 text-xs" />
-          </div>
+    <div style={{
+      background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden',
+    }}>
+      <div style={{ padding: '13px 16px', borderBottom: '1px solid var(--border)' }}>
+        <span style={{ fontFamily: 'var(--font-heading), Rajdhani, sans-serif', fontSize: 13, fontWeight: 700, letterSpacing: '.5px', textTransform: 'uppercase', color: 'var(--text2)' }}>
+          Log Event
+        </span>
+      </div>
+      <form onSubmit={handleSubmit} style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Field label="Event Type" required>
+            <select
+              value={type}
+              onChange={(e) => { setType(e.target.value); setPrimaryUserId(''); setSecondaryUserId('') }}
+              style={{ ...inputStyle, cursor: 'pointer' }}
+              onFocus={onFocus} onBlur={onBlur}
+            >
+              <option value="">Select type…</option>
+              {EVENT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+          </Field>
+          <Field label="Minute" required>
+            <input
+              type="number" min={0} max={200}
+              value={minute}
+              onChange={(e) => setMinute(e.target.value)}
+              style={inputStyle}
+              onFocus={onFocus} onBlur={onBlur}
+            />
+          </Field>
         </div>
 
-        <div className="space-y-1">
-          <Label className="text-xs">Team *</Label>
-          <Select value={teamId} onValueChange={(v) => { setTeamId(v); setPrimaryUserId(''); setSecondaryUserId('') }}>
-            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select team" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value={homeTeam.id}>{homeTeam.name}</SelectItem>
-              <SelectItem value={awayTeam.id}>{awayTeam.name}</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <Field label="Team" required>
+          <select
+            value={teamId}
+            onChange={(e) => { setTeamId(e.target.value); setPrimaryUserId(''); setSecondaryUserId('') }}
+            style={{ ...inputStyle, cursor: 'pointer' }}
+            onFocus={onFocus} onBlur={onBlur}
+          >
+            <option value="">Select team…</option>
+            <option value={homeTeam.id}>{homeTeam.name}</option>
+            <option value={awayTeam.id}>{awayTeam.name}</option>
+          </select>
+        </Field>
 
         {teamId && (
-          <div className="space-y-1">
-            <Label className="text-xs">
-              {type === 'SUBSTITUTION' ? 'Player Out' : type === 'GOAL' || type === 'OWN_GOAL' || type === 'EXTRA_TIME_GOAL' ? 'Scorer' : 'Player'}
-            </Label>
-            <Select value={primaryUserId || 'none'} onValueChange={(v) => setPrimaryUserId(v === 'none' ? '' : v)}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select player (optional)" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">— None —</SelectItem>
-                {teamPlayers.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>#{p.jerseyNumber} {p.displayName} ({p.position})</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <Field label={playerLabel}>
+            <select
+              value={primaryUserId}
+              onChange={(e) => setPrimaryUserId(e.target.value)}
+              style={{ ...inputStyle, cursor: 'pointer' }}
+              onFocus={onFocus} onBlur={onBlur}
+            >
+              <option value="">— None —</option>
+              {teamPlayers.map((p) => (
+                <option key={p.id} value={p.id}>#{p.jerseyNumber} {p.displayName} ({p.position})</option>
+              ))}
+            </select>
+          </Field>
         )}
 
         {teamId && needsSecondary && (
-          <div className="space-y-1">
-            <Label className="text-xs">{secondaryLabel}</Label>
-            <Select value={secondaryUserId || 'none'} onValueChange={(v) => setSecondaryUserId(v === 'none' ? '' : v)}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select player (optional)" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">— None —</SelectItem>
-                {teamPlayers.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>#{p.jerseyNumber} {p.displayName} ({p.position})</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <Field label={secondaryLabel}>
+            <select
+              value={secondaryUserId}
+              onChange={(e) => setSecondaryUserId(e.target.value)}
+              style={{ ...inputStyle, cursor: 'pointer' }}
+              onFocus={onFocus} onBlur={onBlur}
+            >
+              <option value="">— None —</option>
+              {teamPlayers.map((p) => (
+                <option key={p.id} value={p.id}>#{p.jerseyNumber} {p.displayName} ({p.position})</option>
+              ))}
+            </select>
+          </Field>
         )}
 
-        <Button type="submit" size="sm" className="w-full gap-1.5" disabled={loading}>
-          {loading ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Logging...</> : <><Plus className="h-3.5 w-3.5" />Log Event</>}
-        </Button>
+        <button
+          type="submit"
+          disabled={loading || !type || !teamId || !minute}
+          style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            width: '100%', padding: '9px 0', borderRadius: 8,
+            background: (loading || !type || !teamId || !minute) ? 'var(--bg3)' : 'var(--accent-clr)',
+            color: (loading || !type || !teamId || !minute) ? 'var(--muted-clr)' : '#000',
+            fontSize: 13, fontWeight: 600, border: 'none',
+            cursor: (loading || !type || !teamId || !minute) ? 'not-allowed' : 'pointer',
+            fontFamily: 'inherit',
+          }}
+        >
+          {loading ? <><Loader2 size={14} className="animate-spin" /> Logging…</> : <><Plus size={14} /> Log Event</>}
+        </button>
       </form>
     </div>
   )

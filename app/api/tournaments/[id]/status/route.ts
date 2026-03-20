@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
 import { canManageTournament } from '@/services/tournaments'
 import { z } from 'zod'
+import { revalidateTag } from 'next/cache'
 
 const schema = z.object({
   status: z.enum(['DRAFT', 'UPCOMING', 'ONGOING', 'COMPLETED']),
@@ -29,5 +30,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
     select: { id: true, status: true },
   })
 
+  revalidateTag('tournaments-list', {})
+  revalidateTag(`tournament-${id}`, {})
   return NextResponse.json({ tournament })
 }
