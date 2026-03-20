@@ -248,7 +248,7 @@ export function AddPlayerDialog({ teamId, memberUserIds }: { teamId: string; mem
                     disabled={isAlreadyMember}
                     onClick={() => !isAlreadyMember && toggleSelect(u)}
                     style={{
-                      width: '100%', background: 'none', border: 'none',
+                      width: '100%', border: 'none',
                       display: 'flex', alignItems: 'center', gap: 10,
                       padding: '8px 10px', borderRadius: 9,
                       cursor: isAlreadyMember ? 'default' : 'pointer',
