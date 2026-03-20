@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
-import { isTeamOwner, isTeamMember, hasPendingInvitation } from '@/services/teams'
+import { isTeamOwner } from '@/services/teams'
 import { createNotification } from '@/services/notifications'
 
 const schema = z.object({ userId: z.string().min(1) })
@@ -27,21 +27,17 @@ export async function POST(request: Request, { params }: Params) {
 
   const { userId } = parsed.data
 
-  // Validate target user exists
-  const target = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, displayName: true } })
+  // Run all validation queries in parallel
+  const [target, membership, pendingInvite, team] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, select: { id: true, displayName: true } }),
+    prisma.teamMembership.findUnique({ where: { teamId_userId: { teamId, userId } }, select: { status: true } }),
+    prisma.teamInvitation.findFirst({ where: { teamId, userId, status: 'PENDING' }, select: { id: true } }),
+    prisma.team.findUnique({ where: { id: teamId }, select: { name: true } }),
+  ])
+
   if (!target) return NextResponse.json({ error: 'User not found' }, { status: 404 })
-
-  // Prevent inviting existing members
-  if (await isTeamMember(teamId, userId)) {
-    return NextResponse.json({ error: 'User is already a member' }, { status: 409 })
-  }
-
-  // Prevent duplicate pending invitations
-  if (await hasPendingInvitation(teamId, userId)) {
-    return NextResponse.json({ error: 'A pending invitation already exists' }, { status: 409 })
-  }
-
-  const team = await prisma.team.findUnique({ where: { id: teamId }, select: { name: true } })
+  if (membership?.status === 'ACTIVE') return NextResponse.json({ error: 'User is already a member' }, { status: 409 })
+  if (pendingInvite) return NextResponse.json({ error: 'A pending invitation already exists' }, { status: 409 })
 
   const invitation = await prisma.teamInvitation.create({
     data: { teamId, userId, type: 'INVITE', status: 'PENDING' },

@@ -28,6 +28,7 @@ export async function GET() {
       tournament: { select: { id: true, name: true } },
     },
     orderBy: { scheduledAt: 'asc' },
+    take: 20,
   })
 
   return NextResponse.json({ matches })

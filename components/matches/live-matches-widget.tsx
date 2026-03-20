@@ -174,7 +174,7 @@ export function LiveMatchesWidget() {
     const supabase = createClient()
     const channel = supabase
       .channel('live-matches-widget')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'matches' }, fetchLive)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'matches', filter: 'status=in.(FIRST_HALF,HALF_TIME,SECOND_HALF,EXTRA_TIME_FIRST_HALF,EXTRA_TIME_HALF_TIME,EXTRA_TIME_SECOND_HALF,PENALTY_SHOOTOUT)' }, fetchLive)
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [fetchLive])

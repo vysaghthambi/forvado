@@ -88,14 +88,12 @@ export default async function TournamentDetailPage({ params }: Props) {
   if (!tournament) notFound()
   if (!tournament.isPublished && !(await canManageTournament(id, user.id, user.role))) notFound()
 
-  const currentStatus = await autoUpdateTournamentStatus(id, tournament)
-  const canManage = await canManageTournament(id, user.id, user.role)
-
-  // Standings
-  let leagueRows = null
-  let groupStandings = null
-  if (tournament.format === 'GROUP_KNOCKOUT') groupStandings = await calculateGroupStandings(id)
-  else if (tournament.format === 'LEAGUE') leagueRows = await calculateStandings(id)
+  const [currentStatus, canManage, leagueRows, groupStandings] = await Promise.all([
+    autoUpdateTournamentStatus(id, tournament),
+    canManageTournament(id, user.id, user.role), // free — deduped by React cache()
+    tournament.format === 'LEAGUE' ? calculateStandings(id) : Promise.resolve(null),
+    tournament.format === 'GROUP_KNOCKOUT' ? calculateGroupStandings(id) : Promise.resolve(null),
+  ])
   const showStandings = tournament.format === 'LEAGUE' || tournament.format === 'GROUP_KNOCKOUT'
 
   // Stat strip
@@ -105,34 +103,34 @@ export default async function TournamentDetailPage({ params }: Props) {
   const teamCount = tournament.teams.length
 
   // Top goal scorers
-  const scorerMap = new Map<string, { name: string; team: string; teamColour: string | null; goals: number }>()
+  const scorerMap = new Map<string, { id: string; name: string; team: string; teamColour: string | null; goals: number }>()
   for (const e of goalEvents) {
     if (!e.primaryUser) continue
     const key = e.primaryUser.id
-    if (!scorerMap.has(key)) scorerMap.set(key, { name: e.primaryUser.displayName, team: e.team.name, teamColour: e.team.homeColour, goals: 0 })
+    if (!scorerMap.has(key)) scorerMap.set(key, { id: key, name: e.primaryUser.displayName, team: e.team.name, teamColour: e.team.homeColour, goals: 0 })
     scorerMap.get(key)!.goals++
   }
   const topScorers = [...scorerMap.values()].sort((a, b) => b.goals - a.goals).slice(0, 5)
   const maxGoals = topScorers[0]?.goals ?? 1
 
   // POTM awards
-  const potmMap = new Map<string, { name: string; count: number }>()
+  const potmMap = new Map<string, { id: string; name: string; count: number }>()
   for (const m of potmMatches) {
     if (!m.playerOfMatch) continue
     const key = m.playerOfMatch.id
-    if (!potmMap.has(key)) potmMap.set(key, { name: m.playerOfMatch.displayName, count: 0 })
+    if (!potmMap.has(key)) potmMap.set(key, { id: key, name: m.playerOfMatch.displayName, count: 0 })
     potmMap.get(key)!.count++
   }
   const potmList = [...potmMap.values()].sort((a, b) => b.count - a.count).slice(0, 5)
 
   // Discipline
-  const yellowMap = new Map<string, { name: string; team: string; teamColour: string | null; count: number }>()
-  const redMap = new Map<string, { name: string; team: string; teamColour: string | null; count: number }>()
+  const yellowMap = new Map<string, { id: string; name: string; team: string; teamColour: string | null; count: number }>()
+  const redMap = new Map<string, { id: string; name: string; team: string; teamColour: string | null; count: number }>()
   for (const e of cardEvents) {
     if (!e.primaryUser) continue
     const key = e.primaryUser.id
     const target = (e.type === 'YELLOW_CARD') ? yellowMap : redMap
-    if (!target.has(key)) target.set(key, { name: e.primaryUser.displayName, team: e.team.name, teamColour: e.team.homeColour, count: 0 })
+    if (!target.has(key)) target.set(key, { id: key, name: e.primaryUser.displayName, team: e.team.name, teamColour: e.team.homeColour, count: 0 })
     target.get(key)!.count++
   }
   const topYellow = [...yellowMap.values()].sort((a, b) => b.count - a.count).slice(0, 3)
@@ -238,7 +236,7 @@ export default async function TournamentDetailPage({ params }: Props) {
             ) : (
               <div>
                 {topScorers.map((s, i) => (
-                  <div key={s.name + i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 15px', borderBottom: i < topScorers.length - 1 ? '1px solid rgba(35,38,56,.5)' : 'none' }}>
+                  <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 15px', borderBottom: i < topScorers.length - 1 ? '1px solid rgba(35,38,56,.5)' : 'none' }}>
                     <span style={{ fontFamily: 'var(--font-heading), Rajdhani, sans-serif', fontSize: 15, fontWeight: 700, color: rankColors[i] ?? 'var(--muted-clr)', width: 20, textAlign: 'center', flexShrink: 0 }}>{i + 1}</span>
                     <PlayerBadge name={s.name} colour={s.teamColour} />
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -264,7 +262,7 @@ export default async function TournamentDetailPage({ params }: Props) {
             ) : (
               <div>
                 {potmList.map((p, i) => (
-                  <div key={p.name + i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 15px', borderBottom: i < potmList.length - 1 ? '1px solid rgba(35,38,56,.5)' : 'none' }}>
+                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 15px', borderBottom: i < potmList.length - 1 ? '1px solid rgba(35,38,56,.5)' : 'none' }}>
                     <span style={{ fontFamily: 'var(--font-heading), Rajdhani, sans-serif', fontSize: 15, fontWeight: 700, color: rankColors[i] ?? 'var(--muted-clr)', width: 20, textAlign: 'center', flexShrink: 0 }}>{i + 1}</span>
                     <PlayerBadge name={p.name} colour={null} />
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -293,7 +291,7 @@ export default async function TournamentDetailPage({ params }: Props) {
                       Most Yellow Cards
                     </div>
                     {topYellow.map((p, i) => (
-                      <div key={p.name + 'y' + i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 15px', borderBottom: '1px solid rgba(35,38,56,.5)' }}>
+                      <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 15px', borderBottom: '1px solid rgba(35,38,56,.5)' }}>
                         <span style={{ fontSize: 14 }}>🟨</span>
                         <PlayerBadge name={p.name} colour={p.teamColour} />
                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -311,7 +309,7 @@ export default async function TournamentDetailPage({ params }: Props) {
                       Red Cards
                     </div>
                     {topRed.map((p, i) => (
-                      <div key={p.name + 'r' + i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 15px', borderBottom: i < topRed.length - 1 ? '1px solid rgba(35,38,56,.5)' : 'none' }}>
+                      <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 15px', borderBottom: i < topRed.length - 1 ? '1px solid rgba(35,38,56,.5)' : 'none' }}>
                         <span style={{ fontSize: 14 }}>🟥</span>
                         <PlayerBadge name={p.name} colour={p.teamColour} />
                         <div style={{ flex: 1, minWidth: 0 }}>

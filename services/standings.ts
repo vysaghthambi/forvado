@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 
 export interface StandingRow {
@@ -28,7 +29,7 @@ function sortRows(rows: StandingRow[]): StandingRow[] {
   })
 }
 
-export async function calculateStandings(tournamentId: string): Promise<StandingRow[]> {
+async function _calculateStandings(tournamentId: string): Promise<StandingRow[]> {
   const tournament = await prisma.tournament.findUnique({
     where: { id: tournamentId, deletedAt: null },
     include: {
@@ -79,7 +80,15 @@ export async function calculateStandings(tournamentId: string): Promise<Standing
   return sortRows(Array.from(map.values()))
 }
 
-export async function calculateGroupStandings(
+export function calculateStandings(tournamentId: string): Promise<StandingRow[]> {
+  return unstable_cache(
+    () => _calculateStandings(tournamentId),
+    ['standings', tournamentId],
+    { revalidate: 60, tags: [`standings-${tournamentId}`] },
+  )()
+}
+
+async function _calculateGroupStandings(
   tournamentId: string
 ): Promise<{ groupId: string; groupName: string; rows: StandingRow[] }[]> {
   const groups = await prisma.tournamentGroup.findMany({
@@ -138,4 +147,14 @@ export async function calculateGroupStandings(
 
     return { groupId: g.id, groupName: g.name, rows: sortRows(Array.from(map.values())) }
   })
+}
+
+export function calculateGroupStandings(
+  tournamentId: string,
+): Promise<{ groupId: string; groupName: string; rows: StandingRow[] }[]> {
+  return unstable_cache(
+    () => _calculateGroupStandings(tournamentId),
+    ['group-standings', tournamentId],
+    { revalidate: 60, tags: [`standings-${tournamentId}`] },
+  )()
 }

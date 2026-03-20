@@ -161,6 +161,8 @@ model TeamMembership {
   user User @relation(fields: [userId], references: [id])
 
   @@unique([teamId, userId])
+  @@index([userId, status])
+  @@index([teamId, status])
   @@map("team_memberships")
 }
 
@@ -178,6 +180,8 @@ model TeamInvitation {
   user User @relation(fields: [userId], references: [id])
 
   @@unique([teamId, userId, type, status])
+  @@index([userId, status])
+  @@index([teamId, status])
   @@map("team_invitations")
 }
 
@@ -207,6 +211,8 @@ model Tournament {
   coordinators TournamentCoordinator[]
   matches      Match[]
 
+  @@index([status, isPublished])
+  @@index([deletedAt])
   @@map("tournaments")
 }
 
@@ -238,6 +244,7 @@ model TournamentTeam {
   group      TournamentGroup? @relation(fields: [groupId], references: [id])
 
   @@unique([tournamentId, teamId])
+  @@index([teamId])
   @@map("tournament_teams")
 }
 
@@ -302,6 +309,10 @@ model Match {
   penalties     PenaltyShootout[]
 
   @@unique([tournamentId, matchOrder])
+  @@index([tournamentId, status])
+  @@index([scheduledAt, status])
+  @@index([homeTeamId])
+  @@index([awayTeamId])
   @@map("matches")
 }
 
@@ -321,6 +332,7 @@ model MatchLineup {
   user  User  @relation(fields: [userId], references: [id])
 
   @@unique([matchId, teamId, userId])
+  @@index([userId])
   @@map("match_lineups")
 }
 
@@ -343,6 +355,8 @@ model MatchEvent {
   secondaryUser User? @relation("SecondaryUser", fields: [secondaryUserId], references: [id])
   createdBy   User   @relation("EventCreator", fields: [createdById], references: [id])
 
+  @@index([matchId, type])
+  @@index([primaryUserId])
   @@map("match_events")
 }
 
@@ -377,5 +391,6 @@ model Notification {
   // Relations
   user User @relation(fields: [userId], references: [id])
 
+  @@index([userId, read])
   @@map("notifications")
 }
