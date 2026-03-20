@@ -126,7 +126,7 @@ export async function calculateGroupStandings(
         away.won++; away.points += 3; home.lost++
         away.form.push('W'); home.form.push('L')
       } else {
-        home.drawn++; home.points++; away.drawn++; away.points++
+        home.drawn++; home.points += 1; away.drawn++; away.points += 1
         home.form.push('D'); away.form.push('D')
       }
     }

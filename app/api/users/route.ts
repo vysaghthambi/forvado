@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/rbac'
 
 export async function GET(request: Request) {
-  const { user: admin, error } = await requireAdmin()
+  const { error } = await requireAdmin()
   if (error) return error
 
   const { searchParams } = new URL(request.url)
@@ -44,8 +44,6 @@ export async function GET(request: Request) {
     }),
     prisma.user.count({ where }),
   ])
-
-  void admin // caller authenticated
 
   return NextResponse.json({ users, total, page, limit })
 }

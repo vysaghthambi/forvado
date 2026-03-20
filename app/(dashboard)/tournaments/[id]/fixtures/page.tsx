@@ -45,7 +45,7 @@ export default async function TournamentFixturesPage({ params }: Props) {
   if (!tournament) notFound()
   if (!tournament.isPublished && !(await canManageTournament(id, user.id, user.role))) notFound()
 
-  await autoUpdateTournamentStatus(id, tournament as any)
+  await autoUpdateTournamentStatus(id, tournament)
   const canManage = await canManageTournament(id, user.id, user.role)
 
   return (
