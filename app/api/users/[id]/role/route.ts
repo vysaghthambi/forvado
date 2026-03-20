@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/rbac'
 
 const schema = z.object({
-  role: z.enum(['PLAYER', 'TEAM_OWNER', 'COORDINATOR', 'ADMIN']),
+  role: z.enum(['PLAYER', 'TEAM_OWNER', 'ADMIN']),
 })
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {

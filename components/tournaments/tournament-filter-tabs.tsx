@@ -1,7 +1,6 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { cn } from '@/lib/utils'
 
 interface Tab {
   value: string
@@ -25,31 +24,36 @@ export function TournamentFilterTabs({ tabs, activeTab }: Props) {
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div
+      className="flex flex-wrap gap-[3px]"
+      style={{
+        background: 'var(--card2, #1d2035)',
+        borderRadius: 8,
+        padding: 3,
+        border: '1px solid var(--border)',
+        width: 'fit-content',
+      }}
+    >
       {tabs.map((tab) => {
         const active = activeTab === tab.value
         return (
           <button
             key={tab.value}
             onClick={() => handleClick(tab.value)}
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors',
-              active
-                ? 'border-primary/40 bg-primary/10 text-primary'
-                : 'border-border/50 text-muted-foreground hover:border-border hover:text-foreground'
-            )}
+            className="flex items-center gap-[5px] transition-all duration-200"
+            style={{
+              padding: '6px 14px',
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: active ? 600 : 500,
+              color: active ? 'var(--text)' : 'var(--muted-clr)',
+              background: active ? 'var(--card)' : 'transparent',
+              boxShadow: active ? '0 2px 8px rgba(0,0,0,.35)' : 'none',
+              border: 'none',
+              cursor: 'pointer',
+            }}
           >
             {tab.label}
-            {tab.count > 0 && (
-              <span
-                className={cn(
-                  'rounded-full px-1.5 py-0 text-[10px] font-bold',
-                  active ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
-                )}
-              >
-                {tab.count}
-              </span>
-            )}
           </button>
         )
       })}

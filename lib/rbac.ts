@@ -6,13 +6,12 @@ import type { Role, User } from '@prisma/client'
 export type { Role }
 
 /**
- * Hierarchy: ADMIN > COORDINATOR > TEAM_OWNER > PLAYER
+ * Hierarchy: ADMIN > TEAM_OWNER > PLAYER
  */
 export const ROLE_HIERARCHY: Record<Role, number> = {
   PLAYER: 0,
   TEAM_OWNER: 1,
-  COORDINATOR: 2,
-  ADMIN: 3,
+  ADMIN: 2,
 }
 
 export function hasRole(userRole: Role, requiredRole: Role): boolean {
@@ -74,6 +73,5 @@ export async function requireRole(
  * Convenience wrappers for common role checks.
  */
 export const requireAdmin = () => requireRole('ADMIN')
-export const requireCoordinator = () => requireRole('COORDINATOR')
 export const requireTeamOwner = () => requireRole('TEAM_OWNER')
 export const requirePlayer = () => requireRole('PLAYER')

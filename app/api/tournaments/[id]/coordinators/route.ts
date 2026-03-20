@@ -32,8 +32,8 @@ export async function POST(req: NextRequest, { params }: Props) {
 
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true, displayName: true } })
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 })
-  if (user.role !== 'COORDINATOR' && user.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'User must have COORDINATOR or ADMIN role' }, { status: 400 })
+  if (user.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'User must have ADMIN role' }, { status: 400 })
   }
 
   const existing = await prisma.tournamentCoordinator.findUnique({

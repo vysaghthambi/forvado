@@ -72,11 +72,16 @@ export async function POST(req: NextRequest, { params }: Props) {
     return NextResponse.json({ error: 'Both teams must be registered in this tournament' }, { status: 400 })
   }
 
+  const FIXTURE_ALLOWED_STATUSES = ['DRAFT', 'UPCOMING', 'ONGOING']
+
   const tournament = await prisma.tournament.findUnique({
     where: { id, deletedAt: null },
-    select: { matchTime: true, playingMembers: true, maxSubstitutes: true },
+    select: { matchTime: true, playingMembers: true, maxSubstitutes: true, status: true },
   })
   if (!tournament) return NextResponse.json({ error: 'Tournament not found' }, { status: 404 })
+  if (!FIXTURE_ALLOWED_STATUSES.includes(tournament.status)) {
+    return NextResponse.json({ error: 'Fixtures can only be created for Draft, Upcoming, or Ongoing tournaments' }, { status: 409 })
+  }
 
   // Use caller-supplied match order, or auto-assign after the last existing one
   let matchOrder = d.matchOrder

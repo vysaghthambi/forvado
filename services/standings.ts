@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 
 export interface StandingRow {
@@ -12,10 +13,11 @@ export interface StandingRow {
   goalsAgainst: number
   goalDifference: number
   points: number
+  form: ('W' | 'D' | 'L')[]
 }
 
 function buildRow(teamId: string, teamName: string, badgeUrl: string | null): StandingRow {
-  return { teamId, teamName, badgeUrl, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, goalDifference: 0, points: 0 }
+  return { teamId, teamName, badgeUrl, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, goalDifference: 0, points: 0, form: [] }
 }
 
 function sortRows(rows: StandingRow[]): StandingRow[] {
@@ -27,7 +29,7 @@ function sortRows(rows: StandingRow[]): StandingRow[] {
   })
 }
 
-export async function calculateStandings(tournamentId: string): Promise<StandingRow[]> {
+async function _calculateStandings(tournamentId: string): Promise<StandingRow[]> {
   const tournament = await prisma.tournament.findUnique({
     where: { id: tournamentId, deletedAt: null },
     include: {
@@ -35,6 +37,7 @@ export async function calculateStandings(tournamentId: string): Promise<Standing
       matches: {
         where: { status: 'COMPLETED' },
         select: { homeTeamId: true, awayTeamId: true, homeScore: true, awayScore: true },
+        orderBy: { matchOrder: 'asc' },
       },
     },
   })
@@ -59,21 +62,33 @@ export async function calculateStandings(tournamentId: string): Promise<Standing
 
     if (m.homeScore > m.awayScore) {
       home.won++; home.points += 3; away.lost++
+      home.form.push('W'); away.form.push('L')
     } else if (m.homeScore < m.awayScore) {
       away.won++; away.points += 3; home.lost++
+      away.form.push('W'); home.form.push('L')
     } else {
       home.drawn++; home.points += 1; away.drawn++; away.points += 1
+      home.form.push('D'); away.form.push('D')
     }
   }
 
   for (const row of map.values()) {
     row.goalDifference = row.goalsFor - row.goalsAgainst
+    row.form = row.form.slice(-5)
   }
 
   return sortRows(Array.from(map.values()))
 }
 
-export async function calculateGroupStandings(
+export function calculateStandings(tournamentId: string): Promise<StandingRow[]> {
+  return unstable_cache(
+    () => _calculateStandings(tournamentId),
+    ['standings', tournamentId],
+    { revalidate: 60, tags: [`standings-${tournamentId}`] },
+  )()
+}
+
+async function _calculateGroupStandings(
   tournamentId: string
 ): Promise<{ groupId: string; groupName: string; rows: StandingRow[] }[]> {
   const groups = await prisma.tournamentGroup.findMany({
@@ -87,6 +102,7 @@ export async function calculateGroupStandings(
   const completedMatches = await prisma.match.findMany({
     where: { tournamentId, status: 'COMPLETED' },
     select: { groupId: true, homeTeamId: true, awayTeamId: true, homeScore: true, awayScore: true },
+    orderBy: { matchOrder: 'asc' },
   })
 
   const matchesByGroup = new Map<string, typeof completedMatches>()
@@ -114,17 +130,31 @@ export async function calculateGroupStandings(
 
       if (m.homeScore > m.awayScore) {
         home.won++; home.points += 3; away.lost++
+        home.form.push('W'); away.form.push('L')
       } else if (m.homeScore < m.awayScore) {
         away.won++; away.points += 3; home.lost++
+        away.form.push('W'); home.form.push('L')
       } else {
-        home.drawn++; home.points++; away.drawn++; away.points++
+        home.drawn++; home.points += 1; away.drawn++; away.points += 1
+        home.form.push('D'); away.form.push('D')
       }
     }
 
     for (const row of map.values()) {
       row.goalDifference = row.goalsFor - row.goalsAgainst
+      row.form = row.form.slice(-5)
     }
 
     return { groupId: g.id, groupName: g.name, rows: sortRows(Array.from(map.values())) }
   })
+}
+
+export function calculateGroupStandings(
+  tournamentId: string,
+): Promise<{ groupId: string; groupName: string; rows: StandingRow[] }[]> {
+  return unstable_cache(
+    () => _calculateGroupStandings(tournamentId),
+    ['group-standings', tournamentId],
+    { revalidate: 60, tags: [`standings-${tournamentId}`] },
+  )()
 }

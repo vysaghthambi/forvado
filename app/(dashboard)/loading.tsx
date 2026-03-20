@@ -1,11 +1,12 @@
-export default function DashboardLoading() {
+// Minimal fallback — each page has its own loading.tsx
+export default function DashboardLayoutLoading() {
   return (
-    <div className="space-y-4 animate-pulse">
-      <div className="h-8 w-48 rounded-lg bg-muted" />
-      <div className="h-4 w-64 rounded-lg bg-muted" />
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-        {[...Array(3)].map((_, i) => (
-          <div key={i} className="h-36 rounded-xl bg-muted" />
+    <div className="animate-pulse" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ height: 22, width: 160, borderRadius: 6, background: 'var(--bg3)' }} />
+      <div style={{ height: 13, width: 240, borderRadius: 4, background: 'var(--bg3)' }} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: 12, marginTop: 8 }}>
+        {[...Array(6)].map((_, i) => (
+          <div key={i} style={{ height: 100, borderRadius: 12, background: 'var(--bg3)' }} />
         ))}
       </div>
     </div>

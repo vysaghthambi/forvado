@@ -22,11 +22,13 @@ export async function GET() {
       etFirstHalfStartedAt: true, etHalfTimeAt: true,
       etSecondHalfStartedAt: true, etFullTimeAt: true,
       penaltyStartedAt: true, completedAt: true,
-      homeTeam: { select: { id: true, name: true, badgeUrl: true } },
-      awayTeam: { select: { id: true, name: true, badgeUrl: true } },
+      round: true,
+      homeTeam: { select: { id: true, name: true, badgeUrl: true, homeColour: true } },
+      awayTeam: { select: { id: true, name: true, badgeUrl: true, homeColour: true } },
       tournament: { select: { id: true, name: true } },
     },
     orderBy: { scheduledAt: 'asc' },
+    take: 20,
   })
 
   return NextResponse.json({ matches })

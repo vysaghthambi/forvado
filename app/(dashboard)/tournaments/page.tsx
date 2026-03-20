@@ -1,29 +1,11 @@
 import { requireUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { TournamentCard } from '@/components/tournaments/tournament-card'
-import { TournamentFilterTabs } from '@/components/tournaments/tournament-filter-tabs'
-import { Button } from '@/components/ui/button'
+import { TournamentsList } from '@/components/tournaments/tournaments-list'
 import Link from 'next/link'
-import { Plus } from 'lucide-react'
-import { Suspense } from 'react'
 
 export const metadata = { title: 'Tournaments — Forvado' }
 
 type Props = { searchParams: Promise<{ tab?: string }> }
-
-const TAB_STATUSES: Record<string, string[]> = {
-  ongoing:   ['ONGOING'],
-  upcoming:  ['REGISTRATION', 'UPCOMING'],
-  completed: ['COMPLETED'],
-  draft:     ['DRAFT'],
-}
-
-const TAB_LABELS: Record<string, string> = {
-  ongoing:   '🔴 Ongoing',
-  upcoming:  '🟡 Upcoming',
-  completed: '✓ Completed',
-  draft:     'Draft',
-}
 
 export default async function TournamentsPage({ searchParams }: Props) {
   const user = await requireUser()
@@ -34,81 +16,123 @@ export default async function TournamentsPage({ searchParams }: Props) {
       deletedAt: null,
       ...(user.role !== 'ADMIN' ? { isPublished: true, status: { not: 'DRAFT' } } : {}),
     },
-    include: {
-      createdBy: { select: { id: true, displayName: true } },
+    select: {
+      id: true,
+      name: true,
+      format: true,
+      status: true,
+      startDate: true,
+      endDate: true,
+      venue: true,
+      maxTeams: true,
+      isPublished: true,
       _count: { select: { teams: true, matches: true } },
     },
     orderBy: { startDate: 'asc' },
   })
 
-  const ongoing   = tournaments.filter((t) => t.status === 'ONGOING')
-  const upcoming  = tournaments.filter((t) => ['REGISTRATION', 'UPCOMING'].includes(t.status))
-  const completed = tournaments.filter((t) => t.status === 'COMPLETED')
-  const drafts    = tournaments.filter((t) => t.status === 'DRAFT')
+  const counts = {
+    all:       tournaments.length,
+    ongoing:   tournaments.filter((t) => t.status === 'ONGOING').length,
+    upcoming:  tournaments.filter((t) => t.status === 'UPCOMING').length,
+    completed: tournaments.filter((t) => t.status === 'COMPLETED').length,
+    draft:     tournaments.filter((t) => t.status === 'DRAFT').length,
+  }
 
-  // Default to first non-empty tab
   const defaultTab =
-    ongoing.length > 0 ? 'ongoing' :
-    upcoming.length > 0 ? 'upcoming' :
-    completed.length > 0 ? 'completed' : 'ongoing'
+    counts.ongoing > 0   ? 'ongoing' :
+    counts.upcoming > 0  ? 'upcoming' :
+    counts.completed > 0 ? 'completed' : 'all'
 
-  const activeTab = tab && TAB_STATUSES[tab] ? tab : defaultTab
+  const activeTab = tab && ['all', 'ongoing', 'upcoming', 'completed', 'draft'].includes(tab)
+    ? tab
+    : defaultTab
 
   const tabs = [
-    { value: 'ongoing',   label: TAB_LABELS.ongoing,   count: ongoing.length },
-    { value: 'upcoming',  label: TAB_LABELS.upcoming,  count: upcoming.length },
-    { value: 'completed', label: TAB_LABELS.completed, count: completed.length },
-    ...(user.role === 'ADMIN' ? [{ value: 'draft', label: TAB_LABELS.draft, count: drafts.length }] : []),
+    { value: 'all',       label: 'All',       count: counts.all },
+    { value: 'ongoing',   label: 'Ongoing',   count: counts.ongoing },
+    { value: 'upcoming',  label: 'Upcoming',  count: counts.upcoming },
+    { value: 'completed', label: 'Completed', count: counts.completed },
+    ...(user.role === 'ADMIN' ? [{ value: 'draft', label: 'Draft', count: counts.draft }] : []),
   ]
 
-  const visibleTournaments =
-    activeTab === 'ongoing'   ? ongoing :
-    activeTab === 'upcoming'  ? upcoming :
-    activeTab === 'completed' ? completed :
-    activeTab === 'draft'     ? drafts : []
+  // Serialize dates for client
+  const serialized = tournaments.map((t) => ({
+    ...t,
+    startDate: t.startDate.toISOString(),
+    endDate: t.endDate.toISOString(),
+  }))
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Tournaments</h1>
+    <div className="flex flex-col gap-[18px]">
+
+      {/* Page head */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h1
+            className="font-bold tracking-[.2px]"
+            style={{
+              fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
+              fontSize: 22,
+              color: 'var(--foreground)',
+            }}
+          >
+            Tournaments
+          </h1>
+          <p style={{ fontSize: 12, color: 'var(--muted-foreground)', marginTop: 3 }}>
+            All tournaments across the platform.
+          </p>
+        </div>
+
         {user.role === 'ADMIN' && (
-          <Button asChild size="sm" className="gap-1.5">
-            <Link href="/tournaments/new">
-              <Plus className="h-4 w-4" />New Tournament
-            </Link>
-          </Button>
+          <Link
+            href="/tournaments/new"
+            className="no-underline flex items-center gap-[6px] transition-all duration-200"
+            style={{
+              padding: '7px 14px',
+              borderRadius: 8,
+              background: 'var(--accent-clr)',
+              color: '#000',
+              fontSize: 12,
+              fontWeight: 600,
+              fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
+              letterSpacing: '0.2px',
+            }}
+          >
+            + Create Tournament
+          </Link>
         )}
       </div>
 
+      {/* Empty state */}
       {tournaments.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 py-20 text-center">
-          <p className="text-muted-foreground text-sm">No tournaments available yet.</p>
+        <div className="flex flex-col items-center gap-3" style={{ padding: '60px 20px', textAlign: 'center' }}>
+          <span style={{ fontSize: 36, opacity: 0.3 }}>🏆</span>
+          <span style={{ fontSize: 13, color: 'var(--muted-foreground)' }}>No tournaments available yet.</span>
           {user.role === 'ADMIN' && (
-            <Button asChild size="sm" variant="outline">
-              <Link href="/tournaments/new">Create your first tournament</Link>
-            </Button>
+            <Link
+              href="/tournaments/new"
+              className="no-underline"
+              style={{
+                marginTop: 4,
+                padding: '6px 14px',
+                borderRadius: 8,
+                border: '1px solid var(--border)',
+                fontSize: 12,
+                color: 'var(--muted-foreground)',
+              }}
+            >
+              Create your first tournament
+            </Link>
           )}
         </div>
       ) : (
-        <>
-          {/* Filter tabs */}
-          <Suspense>
-            <TournamentFilterTabs tabs={tabs} activeTab={activeTab} />
-          </Suspense>
-
-          {/* Tournament list */}
-          {visibleTournaments.length === 0 ? (
-            <p className="text-center text-sm text-muted-foreground py-12">
-              No {TAB_LABELS[activeTab]?.toLowerCase().replace(/[^a-z ]/g, '').trim()} tournaments yet.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {visibleTournaments.map((t) => (
-                <TournamentCard key={t.id} tournament={t} />
-              ))}
-            </div>
-          )}
-        </>
+        <TournamentsList
+          tournaments={serialized}
+          tabs={tabs}
+          activeTab={activeTab}
+          showDraft={user.role === 'ADMIN'}
+        />
       )}
     </div>
   )

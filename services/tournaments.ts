@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { prisma } from '@/lib/prisma'
 import type { Role, TournamentStatus } from '@prisma/client'
 
@@ -30,15 +31,14 @@ export async function isTournamentCoordinator(tournamentId: string, userId: stri
   return !!c
 }
 
-export async function canManageTournament(
+export const canManageTournament = cache(async (
   tournamentId: string,
   userId: string,
   userRole: Role
-): Promise<boolean> {
+): Promise<boolean> => {
   if (userRole === 'ADMIN') return true
-  if (userRole === 'COORDINATOR') return isTournamentCoordinator(tournamentId, userId)
-  return false
-}
+  return isTournamentCoordinator(tournamentId, userId)
+})
 
 export async function autoUpdateTournamentStatus(
   id: string,

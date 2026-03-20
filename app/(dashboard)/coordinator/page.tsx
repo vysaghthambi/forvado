@@ -7,7 +7,7 @@ export const metadata = { title: 'Coordinator Panel — Forvado' }
 
 export default async function CoordinatorPage() {
   const user = await requireUser()
-  if (user.role !== 'COORDINATOR' && user.role !== 'ADMIN') redirect('/dashboard')
+  if (user.role !== 'ADMIN') redirect('/dashboard')
 
   const assignments = await prisma.tournamentCoordinator.findMany({
     where: { userId: user.id },

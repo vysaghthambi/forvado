@@ -2,14 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Separator } from '@/components/ui/separator'
 import { toast } from 'sonner'
-import { Loader2, Plus } from 'lucide-react'
 
 interface RegisteredTeam {
   team: { id: string; name: string }
@@ -34,35 +27,69 @@ interface Props {
 
 type MatchType = 'group' | 'knockout'
 
+const inputStyle: React.CSSProperties = {
+  background: 'var(--bg2)',
+  border: '1px solid var(--border2)',
+  borderRadius: 8,
+  padding: '9px 12px',
+  fontSize: 13,
+  color: 'var(--text)',
+  outline: 'none',
+  width: '100%',
+  boxSizing: 'border-box',
+  fontFamily: 'inherit',
+  transition: 'border-color .2s',
+}
+
+const labelStyle: React.CSSProperties = {
+  fontSize: 10,
+  fontWeight: 600,
+  color: 'var(--muted-clr)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.5px',
+}
+
+function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+      <div style={labelStyle}>
+        {label}{required && <span style={{ color: 'var(--live)', marginLeft: 3 }}>*</span>}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function onFocus(e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) {
+  e.target.style.borderColor = 'var(--accent-clr)'
+}
+function onBlur(e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) {
+  e.target.style.borderColor = 'var(--border2)'
+}
+
 export function CreateFixtureDialog({
   tournamentId, format, teams, groups, matchCount, matchTime, playingMembers, maxSubstitutes,
 }: Props) {
   const router = useRouter()
-  const [open, setOpen]     = useState(false)
+  const [open, setOpen]       = useState(false)
   const [loading, setLoading] = useState(false)
 
   const isGroupKnockout = format === 'GROUP_KNOCKOUT'
 
-  // Match type toggle (only used for GROUP_KNOCKOUT)
-  const [matchType, setMatchType] = useState<MatchType>('group')
-
-  // Core fields
-  const [matchNumber, setMatchNumber]   = useState(String(matchCount + 1))
+  const [matchType, setMatchType]             = useState<MatchType>('group')
+  const [matchNumber, setMatchNumber]         = useState(String(matchCount + 1))
   const [selectedGroupId, setSelectedGroupId] = useState('')
-  const [homeTeamId, setHomeTeamId]     = useState('')
-  const [awayTeamId, setAwayTeamId]     = useState('')
-  const [scheduledAt, setScheduledAt]   = useState('')
-  const [venue, setVenue]               = useState('')
-  const [round, setRound]               = useState('')
-
-  // Per-match overrides (prefilled from tournament config)
-  const [matchTimeVal, setMatchTimeVal]   = useState(String(matchTime))
-  const [playingCount, setPlayingCount]   = useState(String(playingMembers))
-  const [subsCount, setSubsCount]         = useState(String(maxSubstitutes))
+  const [homeTeamId, setHomeTeamId]           = useState('')
+  const [awayTeamId, setAwayTeamId]           = useState('')
+  const [scheduledAt, setScheduledAt]         = useState('')
+  const [venue, setVenue]                     = useState('')
+  const [round, setRound]                     = useState('')
+  const [matchTimeVal, setMatchTimeVal]       = useState(String(matchTime))
+  const [playingCount, setPlayingCount]       = useState(String(playingMembers))
+  const [subsCount, setSubsCount]             = useState(String(maxSubstitutes))
 
   const isGroupMatch = isGroupKnockout && matchType === 'group'
 
-  // For group matches, only show teams in the selected group
   const availableTeams = isGroupMatch && selectedGroupId
     ? teams.filter((t) => t.group?.id === selectedGroupId)
     : teams
@@ -142,180 +169,338 @@ export function CreateFixtureDialog({
   const teamDisabled = isGroupMatch && !selectedGroupId
 
   return (
-    <Dialog open={open} onOpenChange={handleOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" className="gap-1.5"><Plus className="h-4 w-4" />Add Fixture</Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Create Fixture</DialogTitle>
-        </DialogHeader>
+    <>
+      {/* Trigger */}
+      <button
+        type="button"
+        onClick={() => handleOpen(true)}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          padding: '7px 14px', borderRadius: 8,
+          background: 'var(--accent-clr)', color: '#000',
+          fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer',
+        }}
+      >
+        <span style={{ fontSize: 15, lineHeight: 1 }}>+</span> Add Fixture
+      </button>
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
-
-          {/* Match number */}
-          <div className="space-y-1.5">
-            <Label>Match #</Label>
-            <Input
-              type="number"
-              min={1}
-              value={matchNumber}
-              onChange={(e) => setMatchNumber(e.target.value)}
-              className="w-28"
-              autoFocus={false}
-              tabIndex={-1}
-            />
-          </div>
-
-          {/* Match type toggle — GROUP_KNOCKOUT only */}
-          {isGroupKnockout && (
-            <div className="space-y-1.5">
-              <Label>Match Type</Label>
-              <div className="flex w-fit overflow-hidden rounded-md border border-border">
-                {(['group', 'knockout'] as MatchType[]).map((t, i) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => handleMatchTypeChange(t)}
-                    className={[
-                      'px-4 py-1.5 text-sm transition-colors capitalize',
-                      i > 0 ? 'border-l border-border' : '',
-                      matchType === t
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-muted-foreground hover:bg-muted',
-                    ].join(' ')}
-                  >
-                    {t}
-                  </button>
-                ))}
+      {/* Overlay */}
+      {open && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) handleOpen(false) }}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'rgba(0,0,0,.75)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            animation: 'fadeIn .15s ease',
+            padding: 20,
+          }}
+        >
+          {/* Modal */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--bg1)',
+              border: '1px solid var(--border2)',
+              borderRadius: 16,
+              width: 480, maxWidth: 'calc(100vw - 40px)',
+              maxHeight: '90vh',
+              display: 'flex', flexDirection: 'column',
+              boxShadow: '0 20px 60px rgba(0,0,0,.6)',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Header */}
+            <div style={{
+              padding: '16px 20px',
+              borderBottom: '1px solid var(--border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              flexShrink: 0,
+            }}>
+              <div style={{
+                fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
+                fontSize: 17, fontWeight: 700, letterSpacing: '.2px', color: 'var(--text)',
+              }}>
+                Create Fixture
               </div>
-            </div>
-          )}
-
-          {/* Group selector — group matches only */}
-          {isGroupMatch && (
-            <div className="space-y-1.5">
-              <Label>Group *</Label>
-              <Select
-                value={selectedGroupId || 'none'}
-                onValueChange={(v) => handleGroupChange(v === 'none' ? '' : v)}
+              <button
+                type="button"
+                onClick={() => handleOpen(false)}
+                style={{
+                  width: 26, height: 26, borderRadius: 6,
+                  background: 'var(--bg2)', border: '1px solid var(--border)',
+                  color: 'var(--muted-clr)', fontSize: 14, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'all .2s', lineHeight: 1,
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.color = 'var(--text)'
+                  ;(e.currentTarget as HTMLElement).style.borderColor = 'var(--border2)'
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.color = 'var(--muted-clr)'
+                  ;(e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'
+                }}
               >
-                <SelectTrigger><SelectValue placeholder="Select group" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Select group…</SelectItem>
-                  {groups.map((g) => (
-                    <SelectItem key={g.id} value={g.id}>Group {g.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {selectedGroupId && availableTeams.length === 0 && (
-                <p className="text-xs text-amber-500">No teams assigned to this group yet.</p>
-              )}
+                ✕
+              </button>
             </div>
-          )}
 
-          {/* Teams */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Home Team *</Label>
-              <Select value={homeTeamId} onValueChange={setHomeTeamId} disabled={teamDisabled}>
-                <SelectTrigger>
-                  <SelectValue placeholder={teamDisabled ? 'Pick group first' : 'Select team'} />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableTeams.map(({ team }) => (
-                    <SelectItem key={team.id} value={team.id} disabled={team.id === awayTeamId}>
-                      {team.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* Body */}
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+              <form
+                id="fixture-form"
+                onSubmit={handleSubmit}
+                style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 13 }}
+              >
+                {/* Match # */}
+                <Field label="Match #">
+                  <input
+                    type="number"
+                    min={1}
+                    value={matchNumber}
+                    onChange={(e) => setMatchNumber(e.target.value)}
+                    style={{ ...inputStyle, width: 100 }}
+                    onFocus={onFocus} onBlur={onBlur}
+                    tabIndex={-1}
+                  />
+                </Field>
+
+                {/* Match type — GROUP_KNOCKOUT only */}
+                {isGroupKnockout && (
+                  <Field label="Match Type">
+                    <div style={{
+                      display: 'flex', gap: 0,
+                      background: 'var(--bg2)',
+                      border: '1px solid var(--border2)',
+                      borderRadius: 8, overflow: 'hidden',
+                      width: 'fit-content',
+                    }}>
+                      {(['group', 'knockout'] as MatchType[]).map((t) => {
+                        const active = matchType === t
+                        return (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => handleMatchTypeChange(t)}
+                            style={{
+                              padding: '7px 18px',
+                              fontSize: 12, fontWeight: active ? 700 : 500,
+                              cursor: 'pointer',
+                              background: active ? 'var(--accent-clr)' : 'transparent',
+                              color: active ? '#000' : 'var(--muted-clr)',
+                              border: 'none',
+                              fontFamily: 'inherit',
+                              transition: 'all .2s',
+                              textTransform: 'capitalize',
+                            }}
+                          >
+                            {t}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </Field>
+                )}
+
+                {/* Group selector */}
+                {isGroupMatch && (
+                  <Field label="Group" required>
+                    <select
+                      value={selectedGroupId}
+                      onChange={(e) => handleGroupChange(e.target.value)}
+                      style={inputStyle}
+                      onFocus={onFocus} onBlur={onBlur}
+                    >
+                      <option value="">Select group…</option>
+                      {groups.map((g) => (
+                        <option key={g.id} value={g.id}>Group {g.name}</option>
+                      ))}
+                    </select>
+                    {selectedGroupId && availableTeams.length === 0 && (
+                      <span style={{ fontSize: 11, color: 'var(--orange)', marginTop: 3 }}>
+                        No teams assigned to this group yet.
+                      </span>
+                    )}
+                  </Field>
+                )}
+
+                {/* Round — knockout only */}
+                {isGroupKnockout && matchType === 'knockout' && (
+                  <Field label="Round">
+                    <input
+                      placeholder="e.g. Semi-Final"
+                      value={round}
+                      onChange={(e) => setRound(e.target.value)}
+                      style={inputStyle}
+                      onFocus={onFocus} onBlur={onBlur}
+                    />
+                  </Field>
+                )}
+
+                {/* Home + Away teams */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <Field label="Home Team" required>
+                    <select
+                      value={homeTeamId}
+                      onChange={(e) => setHomeTeamId(e.target.value)}
+                      disabled={teamDisabled}
+                      style={{ ...inputStyle, opacity: teamDisabled ? 0.5 : 1, cursor: teamDisabled ? 'not-allowed' : 'pointer' }}
+                      onFocus={onFocus} onBlur={onBlur}
+                    >
+                      <option value="">{teamDisabled ? 'Pick group first' : 'Select team…'}</option>
+                      {availableTeams.map(({ team }) => (
+                        <option key={team.id} value={team.id} disabled={team.id === awayTeamId}>{team.name}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Away Team" required>
+                    <select
+                      value={awayTeamId}
+                      onChange={(e) => setAwayTeamId(e.target.value)}
+                      disabled={teamDisabled}
+                      style={{ ...inputStyle, opacity: teamDisabled ? 0.5 : 1, cursor: teamDisabled ? 'not-allowed' : 'pointer' }}
+                      onFocus={onFocus} onBlur={onBlur}
+                    >
+                      <option value="">{teamDisabled ? 'Pick group first' : 'Select team…'}</option>
+                      {availableTeams.map(({ team }) => (
+                        <option key={team.id} value={team.id} disabled={team.id === homeTeamId}>{team.name}</option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+
+                {/* Date & Time */}
+                <Field label="Date & Time" required>
+                  <input
+                    type="datetime-local"
+                    value={scheduledAt}
+                    onChange={(e) => setScheduledAt(e.target.value)}
+                    style={inputStyle}
+                    onFocus={onFocus} onBlur={onBlur}
+                  />
+                </Field>
+
+                {/* Venue + Round (group type) */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <Field label="Venue">
+                    <input
+                      placeholder="Optional"
+                      value={venue}
+                      onChange={(e) => setVenue(e.target.value)}
+                      style={inputStyle}
+                      onFocus={onFocus} onBlur={onBlur}
+                    />
+                  </Field>
+                  {(!isGroupKnockout || matchType === 'group') && (
+                    <Field label="Round">
+                      <input
+                        placeholder="e.g. Round 3"
+                        value={round}
+                        onChange={(e) => setRound(e.target.value)}
+                        style={inputStyle}
+                        onFocus={onFocus} onBlur={onBlur}
+                      />
+                    </Field>
+                  )}
+                </div>
+
+                {/* Match settings box */}
+                <div style={{
+                  background: 'var(--bg2)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 8,
+                  padding: '12px 14px',
+                  display: 'flex', flexDirection: 'column', gap: 10,
+                }}>
+                  <div style={{ fontSize: 11, color: 'var(--muted-clr)', marginBottom: 2 }}>
+                    Match settings <span style={{ fontStyle: 'italic' }}>(prefilled from tournament config)</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                    <Field label="Match Time (min)">
+                      <input
+                        type="number" min={10} max={120}
+                        value={matchTimeVal}
+                        onChange={(e) => setMatchTimeVal(e.target.value)}
+                        style={inputStyle}
+                        onFocus={onFocus} onBlur={onBlur}
+                      />
+                    </Field>
+                    <Field label="Players">
+                      <input
+                        type="number" min={5} max={15}
+                        value={playingCount}
+                        onChange={(e) => setPlayingCount(e.target.value)}
+                        style={inputStyle}
+                        onFocus={onFocus} onBlur={onBlur}
+                      />
+                    </Field>
+                    <Field label="Substitutes">
+                      <input
+                        type="number" min={0} max={10}
+                        value={subsCount}
+                        onChange={(e) => setSubsCount(e.target.value)}
+                        style={inputStyle}
+                        onFocus={onFocus} onBlur={onBlur}
+                      />
+                    </Field>
+                  </div>
+                </div>
+
+              </form>
             </div>
-            <div className="space-y-1.5">
-              <Label>Away Team *</Label>
-              <Select value={awayTeamId} onValueChange={setAwayTeamId} disabled={teamDisabled}>
-                <SelectTrigger>
-                  <SelectValue placeholder={teamDisabled ? 'Pick group first' : 'Select team'} />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableTeams.map(({ team }) => (
-                    <SelectItem key={team.id} value={team.id} disabled={team.id === homeTeamId}>
-                      {team.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+
+            {/* Footer */}
+            <div style={{
+              padding: '13px 20px',
+              borderTop: '1px solid var(--border)',
+              display: 'flex', justifyContent: 'flex-end', gap: 8,
+              flexShrink: 0,
+            }}>
+              <button
+                type="button"
+                onClick={() => handleOpen(false)}
+                style={{
+                  padding: '8px 18px', borderRadius: 8,
+                  background: 'transparent', border: '1px solid var(--border2)',
+                  color: 'var(--text2)', fontSize: 13, fontWeight: 500,
+                  cursor: 'pointer', fontFamily: 'inherit', transition: 'all .2s',
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = 'var(--bg3)'
+                  ;(e.currentTarget as HTMLElement).style.borderColor = 'var(--border3)'
+                  ;(e.currentTarget as HTMLElement).style.color = 'var(--text)'
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = 'transparent'
+                  ;(e.currentTarget as HTMLElement).style.borderColor = 'var(--border2)'
+                  ;(e.currentTarget as HTMLElement).style.color = 'var(--text2)'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="fixture-form"
+                disabled={loading}
+                style={{
+                  flex: 1, padding: '8px 0', borderRadius: 8,
+                  background: loading ? 'var(--bg3)' : 'var(--accent-clr)',
+                  color: loading ? 'var(--muted-clr)' : '#000',
+                  fontSize: 13, fontWeight: 600, border: 'none',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  fontFamily: 'inherit', transition: 'background .2s',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                {loading ? 'Creating…' : 'Create Fixture'}
+              </button>
             </div>
+
           </div>
-
-          {/* Date & Time */}
-          <div className="space-y-1.5">
-            <Label>Date & Time *</Label>
-            <Input
-              type="datetime-local"
-              value={scheduledAt}
-              onChange={(e) => setScheduledAt(e.target.value)}
-            />
-          </div>
-
-          {/* Venue & Round */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Venue</Label>
-              <Input placeholder="Optional" value={venue} onChange={(e) => setVenue(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Round</Label>
-              <Input placeholder="e.g. Semi-Final" value={round} onChange={(e) => setRound(e.target.value)} />
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Per-match overrides */}
-          <div className="space-y-1.5">
-            <p className="text-xs text-muted-foreground">Match settings (prefilled from tournament config)</p>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Match Time (min)</Label>
-                <Input
-                  type="number"
-                  min={10}
-                  max={120}
-                  value={matchTimeVal}
-                  onChange={(e) => setMatchTimeVal(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Players</Label>
-                <Input
-                  type="number"
-                  min={5}
-                  max={15}
-                  value={playingCount}
-                  onChange={(e) => setPlayingCount(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Substitutes</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={10}
-                  value={subsCount}
-                  onChange={(e) => setSubsCount(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading
-              ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating…</>
-              : 'Create Fixture'}
-          </Button>
-        </form>
-      </DialogContent>
-    </Dialog>
+        </div>
+      )}
+    </>
   )
 }

@@ -8,7 +8,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <div className="min-h-screen bg-background">
       <DashboardNav user={user} />
-      <main className="container mx-auto px-4 pt-6 pb-24 md:pb-8">{children}</main>
+      <main className="mx-auto w-full max-w-6xl px-4 sm:px-6 pt-6 pb-24 md:pb-10">{children}</main>
       <PWAInstallPrompt />
     </div>
   )

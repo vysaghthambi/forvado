@@ -5,11 +5,9 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Bell, Check } from 'lucide-react'
+import { Bell } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
-import { cn } from '@/lib/utils'
 
 interface Notification {
   id: string
@@ -74,60 +72,101 @@ export function NotificationBell({ userId }: { userId: string }) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative h-8 w-8">
+        <button
+          className="relative flex h-[34px] w-[34px] items-center justify-center rounded-[8px] border-0 bg-transparent transition-colors duration-200 outline-none"
+          style={{ color: 'var(--muted-foreground)' }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'var(--secondary)'
+            e.currentTarget.style.color = 'var(--foreground)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent'
+            e.currentTarget.style.color = 'var(--muted-foreground)'
+          }}
+        >
           <Bell className="h-4 w-4" />
           {unread > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-              {unread > 9 ? '9+' : unread}
-            </span>
+            <span
+              className="absolute top-[5px] right-[5px] h-[7px] w-[7px] rounded-full"
+              style={{ background: 'var(--destructive)', border: '1.5px solid var(--sidebar, #0f1018)' }}
+            />
           )}
-        </Button>
+        </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 p-0">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
-          <span className="text-sm font-semibold">Notifications</span>
+      <PopoverContent
+        align="end"
+        className="w-[272px] p-0 overflow-hidden"
+        style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px' }}
+      >
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-[15px] py-3 border-b"
+          style={{ borderColor: 'var(--border)' }}
+        >
+          <span
+            className="text-[13px] font-bold tracking-[0.3px]"
+            style={{ fontFamily: 'var(--font-heading), Rajdhani, sans-serif' }}
+          >
+            Notifications
+          </span>
           {unread > 0 && (
-            <button onClick={markAllRead} className="flex items-center gap-1 text-xs text-primary hover:underline">
-              <Check className="h-3 w-3" /> Mark all read
+            <button
+              onClick={markAllRead}
+              className="text-[11px] bg-transparent border-0 cursor-pointer"
+              style={{ color: 'var(--primary)' }}
+            >
+              Clear all
             </button>
           )}
         </div>
-        <ScrollArea className="max-h-96">
+
+        <ScrollArea className="max-h-[340px]">
           {notifications.length === 0 ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">No notifications yet.</p>
+            <div className="py-10 text-center text-xs" style={{ color: 'var(--muted-foreground)' }}>
+              No notifications yet.
+            </div>
           ) : (
             <div>
               {notifications.map((n) => (
                 <button
                   key={n.id}
                   onClick={() => handleNotificationClick(n)}
-                  className={cn(
-                    'w-full text-left px-4 py-3 border-b border-border/30 transition-colors hover:bg-muted/30 last:border-0',
-                    !n.read && 'bg-primary/5'
-                  )}
+                  className="w-full text-left flex gap-[9px] items-start border-b last:border-0 transition-colors"
+                  style={{
+                    padding: '10px 15px',
+                    borderColor: 'rgba(35,38,56,.5)',
+                    background: !n.read ? 'rgba(245,200,66,.04)' : 'transparent',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,.025)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = !n.read ? 'rgba(245,200,66,.04)' : 'transparent' }}
                 >
-                  <div className="flex items-start gap-2">
-                    {!n.read && <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
-                    <div className={cn('min-w-0', n.read && 'pl-3.5')}>
-                      <p className="text-sm font-medium leading-snug">{n.title}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{n.body}</p>
-                      <p className="mt-1 text-xs text-muted-foreground/60">
-                        {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
-                      </p>
-                    </div>
+                  <div
+                    className="h-[6px] w-[6px] rounded-full flex-shrink-0 mt-1"
+                    style={{ background: !n.read ? 'var(--primary)' : 'var(--border)' }}
+                  />
+                  <div className="min-w-0">
+                    <span className="block text-[11px] leading-[1.5]" style={{ color: 'var(--muted-foreground)' }}>
+                      <span className="font-medium" style={{ color: 'var(--foreground)' }}>{n.title}</span>
+                      {' '}{n.body}
+                    </span>
+                    <span className="block text-[10px] mt-[2px]" style={{ color: 'var(--muted-foreground)' }}>
+                      {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
+                    </span>
                   </div>
                 </button>
               ))}
             </div>
           )}
         </ScrollArea>
-        <div className="border-t border-border/50 px-4 py-2">
+
+        <div className="border-t px-[15px] py-2" style={{ borderColor: 'var(--border)' }}>
           <Link
             href="/notifications"
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            className="text-[11px] no-underline transition-colors"
+            style={{ color: 'var(--muted-foreground)' }}
             onClick={() => setOpen(false)}
           >
-            View all notifications
+            View all notifications →
           </Link>
         </div>
       </PopoverContent>
