@@ -13,7 +13,7 @@ export default async function NewTeamPage() {
     <div style={{ maxWidth: 640, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       {/* Breadcrumb */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted-clr)' }}>
+      <div className="hidden sm:flex" style={{ alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted-clr)' }}>
         <Link href="/teams" className="no-underline transition-colors hover:text-foreground" style={{ color: 'var(--muted-clr)' }}>
           Teams
         </Link>

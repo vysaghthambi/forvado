@@ -8,7 +8,7 @@ export default function ManageTournamentLoading() {
     <div className="animate-pulse" style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 960, margin: '0 auto' }}>
 
       {/* Breadcrumb */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div className="hidden sm:flex" style={{ alignItems: 'center', gap: 8 }}>
         <S w={80} h={12} r={4} />
         <S w={6} h={6} r={3} />
         <S w={140} h={12} r={4} />
