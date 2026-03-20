@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Pencil } from 'lucide-react'
+import { inputStyle, labelStyle } from '@/lib/styles'
 
 interface Props {
   matchId: string
@@ -14,27 +15,6 @@ interface Props {
 
 const ROUND_OPTIONS = ['GROUP', 'ROUND OF 32', 'PRE-QUARTER FINAL', 'QUARTER FINAL', 'SEMI-FINAL', 'FINAL']
 
-const inputStyle: React.CSSProperties = {
-  background: 'var(--bg2)',
-  border: '1px solid var(--border2)',
-  borderRadius: 8,
-  padding: '9px 12px',
-  fontSize: 13,
-  color: 'var(--text)',
-  outline: 'none',
-  width: '100%',
-  boxSizing: 'border-box',
-  fontFamily: 'inherit',
-  transition: 'border-color .2s',
-}
-
-const labelStyle: React.CSSProperties = {
-  fontSize: 10,
-  fontWeight: 600,
-  color: 'var(--muted-clr)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.5px',
-}
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

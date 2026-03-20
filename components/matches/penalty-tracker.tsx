@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Loader2, Check, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { inputStyle, labelStyle } from '@/lib/styles'
 
 interface Player { id: string; displayName: string; jerseyNumber: number; teamId: string }
 interface Team { id: string; name: string }
@@ -25,29 +26,6 @@ interface Props {
   players: Player[]
   initialKicks: Kick[]
   canEdit?: boolean
-}
-
-const inputStyle: React.CSSProperties = {
-  background: 'var(--bg2)',
-  border: '1px solid var(--border2)',
-  borderRadius: 8,
-  padding: '9px 12px',
-  fontSize: 13,
-  color: 'var(--text)',
-  outline: 'none',
-  width: '100%',
-  boxSizing: 'border-box',
-  fontFamily: 'inherit',
-  transition: 'border-color .2s',
-  cursor: 'pointer',
-}
-
-const labelStyle: React.CSSProperties = {
-  fontSize: 10,
-  fontWeight: 600,
-  color: 'var(--muted-clr)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.5px',
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -178,7 +156,7 @@ export function PenaltyTracker({ matchId, status, homeTeam, awayTeam, players, i
                 <select
                   value={teamId}
                   onChange={(e) => { setTeamId(e.target.value); setUserId('') }}
-                  style={inputStyle}
+                  style={{ ...inputStyle, cursor: 'pointer' }}
                   onFocus={onFocus} onBlur={onBlur}
                 >
                   <option value="">Team…</option>
@@ -191,7 +169,7 @@ export function PenaltyTracker({ matchId, status, homeTeam, awayTeam, players, i
                   value={userId}
                   onChange={(e) => setUserId(e.target.value)}
                   disabled={!teamId}
-                  style={{ ...inputStyle, opacity: !teamId ? 0.5 : 1, cursor: !teamId ? 'not-allowed' : 'pointer' }}
+                  style={{ ...inputStyle, cursor: !teamId ? 'not-allowed' : 'pointer', opacity: !teamId ? 0.5 : 1 }}
                   onFocus={onFocus} onBlur={onBlur}
                 >
                   <option value="">Unknown</option>
@@ -204,7 +182,7 @@ export function PenaltyTracker({ matchId, status, homeTeam, awayTeam, players, i
                 <select
                   value={scored}
                   onChange={(e) => setScored(e.target.value)}
-                  style={inputStyle}
+                  style={{ ...inputStyle, cursor: 'pointer' }}
                   onFocus={onFocus} onBlur={onBlur}
                 >
                   <option value="">Result…</option>
