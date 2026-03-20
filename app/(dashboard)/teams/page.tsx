@@ -1,113 +1,201 @@
 import { requireUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { TeamCard } from '@/components/teams/team-card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import Link from 'next/link'
-import { Plus, Search } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { TeamJoinSearch } from '@/components/teams/team-join-search'
 
 export const metadata = { title: 'Teams — Forvado' }
 
-interface Props {
-  searchParams: Promise<{ q?: string; accepting?: string }>
-}
-
-export default async function TeamsPage({ searchParams }: Props) {
+export default async function TeamsPage() {
   const user = await requireUser()
-  const { q, accepting } = await searchParams
-
-  const where = {
-    deletedAt: null as null,
-    ...(accepting === 'true' && { isAcceptingRequests: true }),
-    ...(q && { name: { contains: q, mode: 'insensitive' as const } }),
-  }
-
-  const teams = await prisma.team.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-    take: 40,
-    include: {
-      owner: { select: { id: true, displayName: true, avatarUrl: true } },
-      _count: { select: { members: true } },
-    },
-  })
 
   const canCreateTeam = ['PLAYER', 'TEAM_OWNER', 'ADMIN'].includes(user.role)
 
-  // Build filter chip hrefs preserving the q param
-  const allHref = q ? `/teams?q=${encodeURIComponent(q)}` : '/teams'
-  const openHref = q
-    ? `/teams?q=${encodeURIComponent(q)}&accepting=true`
-    : '/teams?accepting=true'
+  // My teams — teams where user is a member
+  const myMemberships = await prisma.teamMembership.findMany({
+    where: { userId: user.id },
+    include: {
+      team: {
+        include: {
+          _count: { select: { members: true } },
+        },
+      },
+    },
+  })
+
+  // Compute match stats per team
+  const myTeamIds = myMemberships.map((m) => m.teamId)
+  const completedMatches = myTeamIds.length > 0
+    ? await prisma.match.findMany({
+        where: {
+          status: 'COMPLETED',
+          OR: [
+            { homeTeamId: { in: myTeamIds } },
+            { awayTeamId: { in: myTeamIds } },
+          ],
+        },
+        select: { homeTeamId: true, awayTeamId: true, homeScore: true, awayScore: true },
+      })
+    : []
+
+  type Stats = { played: number; won: number; goals: number }
+  const statsMap = new Map<string, Stats>()
+  for (const id of myTeamIds) statsMap.set(id, { played: 0, won: 0, goals: 0 })
+
+  for (const m of completedMatches) {
+    const home = statsMap.get(m.homeTeamId)
+    const away = statsMap.get(m.awayTeamId)
+    if (home) { home.played++; home.goals += m.homeScore; if (m.homeScore > m.awayScore) home.won++ }
+    if (away) { away.played++; away.goals += m.awayScore; if (m.awayScore > m.homeScore) away.won++ }
+  }
+
+  const myTeams = myMemberships.map((m) => ({
+    id: m.team.id,
+    name: m.team.name,
+    homeColour: m.team.homeColour,
+    memberCount: m.team._count.members,
+    stats: statsMap.get(m.teamId) ?? { played: 0, won: 0, goals: 0 },
+  }))
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold">Teams</h1>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 960, margin: '0 auto' }}>
+
+      {/* Page head */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div>
+          <h1 style={{
+            fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
+            fontSize: 22, fontWeight: 700, color: 'var(--text)', margin: 0,
+          }}>
+            Teams
+          </h1>
+          <p style={{ fontSize: 12, color: 'var(--muted-clr)', marginTop: 3 }}>
+            Teams you&apos;re part of, and discover new ones.
+          </p>
+        </div>
         {canCreateTeam && (
-          <Button asChild size="sm" className="gap-2">
-            <Link href="/teams/new">
-              <Plus className="h-4 w-4" />New Team
-            </Link>
-          </Button>
+          <Link
+            href="/teams/new"
+            className="no-underline"
+            style={{
+              padding: '8px 16px', borderRadius: 8,
+              background: 'var(--accent-clr)', color: '#000',
+              fontSize: 13, fontWeight: 600,
+            }}
+          >
+            + Create Team
+          </Link>
         )}
       </div>
 
-      {/* Search */}
-      <form method="GET" className="flex items-center gap-2">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input name="q" defaultValue={q} placeholder="Search teams…" className="pl-9" />
-          {accepting === 'true' && (
-            <input type="hidden" name="accepting" value="true" />
-          )}
-        </div>
-        <Button type="submit" variant="secondary" size="sm">Search</Button>
-      </form>
+      {/* ── My Teams ── */}
+      <div>
+        <SectionLabel>My Teams</SectionLabel>
+        {myTeams.length === 0 ? (
+          <div style={{
+            background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12,
+            padding: '36px 20px', textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 28, opacity: 0.35, marginBottom: 8 }}>👥</div>
+            <div style={{ fontSize: 12, color: 'var(--muted-clr)' }}>You&apos;re not in any team yet.</div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {myTeams.map((team) => {
+              const colour = team.homeColour ?? '#2d3050'
+              const bg = colour + '33'
+              const initials = team.name.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()
 
-      {/* Filter chips */}
-      <div className="flex gap-2">
-        <Link
-          href={allHref}
-          className={cn(
-            'inline-flex items-center rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors',
-            accepting !== 'true'
-              ? 'border-primary/40 bg-primary/10 text-primary'
-              : 'border-border/50 text-muted-foreground hover:border-border hover:text-foreground'
-          )}
-        >
-          All teams
-        </Link>
-        <Link
-          href={openHref}
-          className={cn(
-            'inline-flex items-center rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors',
-            accepting === 'true'
-              ? 'border-primary/40 bg-primary/10 text-primary'
-              : 'border-border/50 text-muted-foreground hover:border-border hover:text-foreground'
-          )}
-        >
-          Open to join
-        </Link>
+              return (
+                <Link key={team.id} href={`/teams/${team.id}`} className="no-underline group">
+                  <div
+                    className="group-hover:border-border3 transition-all"
+                    style={{
+                      background: 'var(--card)', border: '1px solid var(--border)',
+                      borderRadius: 12, padding: '16px 18px',
+                      display: 'flex', alignItems: 'center', gap: 14,
+                      transition: 'border-color .15s, transform .15s, box-shadow .15s',
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'
+                      ;(e.currentTarget as HTMLElement).style.boxShadow = '0 4px 24px rgba(0,0,0,.5)'
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.transform = ''
+                      ;(e.currentTarget as HTMLElement).style.boxShadow = ''
+                    }}
+                  >
+                    {/* Badge */}
+                    <div style={{
+                      width: 58, height: 58, borderRadius: 13, flexShrink: 0,
+                      background: bg, border: `1px solid ${colour}55`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
+                      fontSize: 18, fontWeight: 800, color: colour,
+                    }}>
+                      {initials}
+                    </div>
+
+                    {/* Info */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
+                        fontSize: 16, fontWeight: 700, color: 'var(--text)',
+                      }} className="truncate">
+                        {team.name}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 3 }}>
+                        {team.memberCount} player{team.memberCount !== 1 ? 's' : ''}
+                      </div>
+                    </div>
+
+                    {/* Stats grid */}
+                    <div style={{
+                      display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
+                      gap: 1, background: 'var(--border)',
+                      borderRadius: 8, overflow: 'hidden', flexShrink: 0,
+                    }}>
+                      {[
+                        { v: team.stats.played, l: 'Played', color: 'var(--text)' },
+                        { v: team.stats.won, l: 'Won', color: 'var(--green)' },
+                        { v: team.stats.goals, l: 'Goals', color: 'var(--accent-clr)' },
+                      ].map(({ v, l, color }) => (
+                        <div key={l} style={{ background: 'var(--card2, #1d2035)', padding: '7px 12px', textAlign: 'center' }}>
+                          <div style={{
+                            fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
+                            fontSize: 17, fontWeight: 700, color,
+                          }}>{v}</div>
+                          <div style={{ fontSize: 9, color: 'var(--muted-clr)', textTransform: 'uppercase', marginTop: 1 }}>{l}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        )}
       </div>
 
-      {teams.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 py-16 text-center">
-          <p className="text-muted-foreground text-sm">No teams found.</p>
-          {canCreateTeam && (
-            <Button asChild size="sm" variant="outline">
-              <Link href="/teams/new">Create the first one</Link>
-            </Button>
-          )}
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {teams.map((team) => (
-            <TeamCard key={team.id} team={team} />
-          ))}
-        </div>
-      )}
+      {/* ── Join a Team ── */}
+      <div>
+        <SectionLabel>Join a Team</SectionLabel>
+        <TeamJoinSearch myTeamIds={myTeamIds} />
+      </div>
+    </div>
+  )
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 10,
+      fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
+      fontSize: 11, fontWeight: 700, color: 'var(--muted-clr)',
+      textTransform: 'uppercase', letterSpacing: '0.8px',
+      marginBottom: 10,
+    }}>
+      {children}
+      <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
     </div>
   )
 }

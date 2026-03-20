@@ -1,40 +1,77 @@
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 
 interface TTeam {
-  team: { id: string; name: string; badgeUrl: string | null }
+  team: { id: string; name: string; badgeUrl: string | null; homeColour?: string | null }
   group?: { id: string; name: string } | null
 }
 
 interface Props {
   teams: TTeam[]
-  emptyLabel?: string
 }
 
-export function RegisteredTeams({ teams, emptyLabel = 'No teams registered yet.' }: Props) {
+export function RegisteredTeams({ teams }: Props) {
   if (teams.length === 0) {
-    return <p className="text-center text-sm text-muted-foreground py-8">{emptyLabel}</p>
+    return (
+      <div className="flex flex-col items-center gap-2" style={{ padding: '24px 8px', textAlign: 'center' }}>
+        <span style={{ fontSize: 28, opacity: 0.35 }}>👥</span>
+        <span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>No teams registered yet.</span>
+      </div>
+    )
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-      {teams.map(({ team, group }) => (
-        <Link key={team.id} href={`/teams/${team.id}`}>
-          <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-card p-3 hover:border-border transition-colors">
-            <Avatar className="h-9 w-9">
-              <AvatarImage src={team.badgeUrl ?? ''} />
-              <AvatarFallback className="text-sm">{team.name.charAt(0)}</AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{team.name}</p>
-              {group && (
-                <Badge variant="secondary" className="text-[10px] h-4 px-1 mt-0.5">Group {group.name}</Badge>
-              )}
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+        gap: 10,
+      }}
+    >
+      {teams.map(({ team, group }) => {
+        const colour = team.homeColour ?? '#2d3050'
+        const bg = colour + '33'
+        const initials = team.name.slice(0, 3).toUpperCase()
+
+        return (
+          <Link key={team.id} href={`/teams/${team.id}`} className="block no-underline group">
+            <div
+              className="flex items-center gap-3 transition-all duration-200 group-hover:bg-white/[0.025]"
+              style={{
+                padding: '10px 12px',
+                background: 'var(--card)',
+                border: '1px solid var(--border)',
+                borderRadius: 10,
+              }}
+            >
+              {/* Badge */}
+              <div style={{
+                width: 36, height: 36, borderRadius: 9, flexShrink: 0,
+                background: bg, border: `1px solid ${colour}55`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
+                fontSize: 11, fontWeight: 700, color: colour, letterSpacing: '0.5px',
+              }}>
+                {initials}
+              </div>
+
+              {/* Info */}
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div
+                  className="truncate"
+                  style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)' }}
+                >
+                  {team.name}
+                </div>
+                {group && (
+                  <div style={{ fontSize: 10, color: 'var(--muted-clr)', marginTop: 2 }}>
+                    Group {group.name}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </Link>
-      ))}
+          </Link>
+        )
+      })}
     </div>
   )
 }

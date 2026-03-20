@@ -1,10 +1,7 @@
 'use client'
 
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 import { format, isToday, isTomorrow, startOfDay } from 'date-fns'
-import { cn } from '@/lib/utils'
 
 const LIVE_STATUSES = new Set([
   'FIRST_HALF', 'HALF_TIME', 'SECOND_HALF',
@@ -13,23 +10,29 @@ const LIVE_STATUSES = new Set([
 ])
 const COMPLETED_STATUSES = new Set(['COMPLETED', 'FULL_TIME', 'EXTRA_TIME_FULL_TIME'])
 
-const STATUS_BADGE_CLASS: Record<string, string> = {
-  SCHEDULED: 'bg-muted text-muted-foreground',
-  FIRST_HALF: 'bg-green-500/20 text-green-400',
-  HALF_TIME: 'bg-amber-500/20 text-amber-400',
-  SECOND_HALF: 'bg-green-500/20 text-green-400',
-  FULL_TIME: 'bg-muted text-muted-foreground',
-  EXTRA_TIME_FIRST_HALF: 'bg-orange-500/20 text-orange-400',
-  EXTRA_TIME_HALF_TIME: 'bg-amber-500/20 text-amber-400',
-  EXTRA_TIME_SECOND_HALF: 'bg-orange-500/20 text-orange-400',
-  EXTRA_TIME_FULL_TIME: 'bg-muted text-muted-foreground',
-  PENALTY_SHOOTOUT: 'bg-red-500/20 text-red-400',
-  COMPLETED: 'bg-muted text-muted-foreground',
-  CANCELLED: 'bg-destructive/20 text-destructive',
-  POSTPONED: 'bg-muted text-muted-foreground',
+const STATUS_LABEL: Record<string, string> = {
+  SCHEDULED: 'Scheduled',
+  FIRST_HALF: '1st Half',
+  HALF_TIME: 'Half Time',
+  SECOND_HALF: '2nd Half',
+  FULL_TIME: 'Full Time',
+  EXTRA_TIME_FIRST_HALF: 'ET 1st',
+  EXTRA_TIME_HALF_TIME: 'ET HT',
+  EXTRA_TIME_SECOND_HALF: 'ET 2nd',
+  EXTRA_TIME_FULL_TIME: 'AET',
+  PENALTY_SHOOTOUT: 'Penalties',
+  COMPLETED: 'Full Time',
+  CANCELLED: 'Cancelled',
+  POSTPONED: 'Postponed',
 }
 
-interface MatchTeam { id: string; name: string; badgeUrl: string | null }
+interface MatchTeam {
+  id: string
+  name: string
+  badgeUrl: string | null
+  homeColour?: string | null
+}
+
 interface Match {
   id: string
   matchOrder: number
@@ -47,6 +50,9 @@ interface Match {
 interface Props {
   matches: Match[]
   showGroup?: boolean
+  noGroup?: boolean
+  /** Strip outer card wrapper (use when already inside a card) */
+  naked?: boolean
 }
 
 function getDateLabel(date: Date): string {
@@ -57,123 +63,183 @@ function getDateLabel(date: Date): string {
 
 function groupByDate(matches: Match[]): { label: string; matches: Match[] }[] {
   const map = new Map<string, Match[]>()
-
-  // Sort: live first, then by scheduledAt
   const sorted = [...matches].sort((a, b) => {
     const aLive = LIVE_STATUSES.has(a.status) ? 0 : 1
     const bLive = LIVE_STATUSES.has(b.status) ? 0 : 1
     if (aLive !== bLive) return aLive - bLive
     return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
   })
-
   for (const m of sorted) {
-    const date = startOfDay(new Date(m.scheduledAt))
-    let label: string
-    if (COMPLETED_STATUSES.has(m.status) || LIVE_STATUSES.has(m.status)) {
-      label = getDateLabel(date)
-    } else {
-      // For scheduled upcoming, also group by date
-      label = getDateLabel(date)
-    }
+    const label = getDateLabel(startOfDay(new Date(m.scheduledAt)))
     if (!map.has(label)) map.set(label, [])
     map.get(label)!.push(m)
   }
-
   return Array.from(map.entries()).map(([label, ms]) => ({ label, matches: ms }))
 }
 
-function formatStatusLabel(s: string) {
-  if (LIVE_STATUSES.has(s)) return '● LIVE'
-  return s.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
+function TeamBadge({ team }: { team: MatchTeam }) {
+  const colour = team.homeColour ?? '#2d3050'
+  const bg = colour + '33'
+  return (
+    <div style={{
+      width: 28, height: 28, borderRadius: 7, flexShrink: 0,
+      background: bg, border: `1px solid ${colour}55`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
+      fontSize: 9, fontWeight: 700, color: colour, letterSpacing: '0.5px',
+    }}>
+      {team.name.slice(0, 3).toUpperCase()}
+    </div>
+  )
 }
 
-export function FixturesList({ matches, showGroup = false }: Props) {
+function MatchItem({ m, isLast, showGroup }: { m: Match; isLast: boolean; showGroup: boolean }) {
+  const isLive = LIVE_STATUSES.has(m.status)
+  const isCompleted = COMPLETED_STATUSES.has(m.status)
+  const isScheduled = !isLive && !isCompleted
+
+  const metaText = isLive
+    ? STATUS_LABEL[m.status] ?? m.status
+    : isCompleted
+    ? STATUS_LABEL[m.status] ?? 'Full Time'
+    : format(new Date(m.scheduledAt), 'h:mm a')
+
+  const roundLabel = [
+    showGroup && m.group ? `Group ${m.group.name}` : null,
+    m.round ?? null,
+  ].filter(Boolean).join(' · ')
+
+  return (
+    <Link href={`/matches/${m.id}`} className="block no-underline group">
+      <div
+        className="group-hover:bg-white/[0.025] transition-colors"
+        style={{ padding: '12px 15px', borderBottom: isLast ? 'none' : '1px solid rgba(35,38,56,.5)' }}
+      >
+        {/* Meta row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+          {isLive && (
+            <span
+              className="animate-pulse"
+              style={{ display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: 'var(--live)', flexShrink: 0 }}
+            />
+          )}
+          <span style={{
+            fontSize: 10, fontWeight: 600,
+            color: isLive ? 'var(--live)' : 'var(--muted-clr)',
+            textTransform: 'uppercase', letterSpacing: '0.4px',
+            fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
+          }}>
+            {isLive ? `LIVE · ${metaText}` : metaText}
+          </span>
+          {roundLabel && (
+            <>
+              <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--border2)', display: 'inline-block', flexShrink: 0 }} />
+              <span style={{ fontSize: 10, color: 'var(--muted-clr)' }}>{roundLabel}</span>
+            </>
+          )}
+        </div>
+
+        {/* Teams + score */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* Home */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, flex: 1, minWidth: 0, justifyContent: 'flex-end' }}>
+            <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)', textAlign: 'right' }} className="truncate">
+              {m.homeTeam.name}
+            </span>
+            <TeamBadge team={m.homeTeam} />
+          </div>
+
+          {/* Score box */}
+          {isScheduled ? (
+            <div style={{
+              flexShrink: 0, padding: '4px 10px', borderRadius: 6,
+              border: '1px solid var(--border)', background: 'var(--bg2)',
+              fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
+              fontSize: 13, fontWeight: 600, color: 'var(--muted-clr)',
+              letterSpacing: '1px',
+            }}>
+              vs
+            </div>
+          ) : (
+            <div style={{
+              flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4,
+              padding: '4px 8px', borderRadius: 6,
+              border: `1px solid ${isLive ? 'var(--live)' : 'var(--border)'}`,
+              background: isLive ? 'var(--live-dim)' : 'var(--bg2)',
+              fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
+              fontSize: 18, fontWeight: 700,
+              color: isLive ? 'var(--live)' : 'var(--text)',
+              lineHeight: 1, letterSpacing: '1px',
+            }}>
+              <span>{m.homeScore}</span>
+              <span style={{ fontSize: 14, color: 'var(--muted-clr)', fontWeight: 400 }}>–</span>
+              <span>{m.awayScore}</span>
+            </div>
+          )}
+
+          {/* Away */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, flex: 1, minWidth: 0 }}>
+            <TeamBadge team={m.awayTeam} />
+            <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)' }} className="truncate">
+              {m.awayTeam.name}
+            </span>
+          </div>
+        </div>
+      </div>
+    </Link>
+  )
+}
+
+export function FixturesList({ matches, showGroup = false, noGroup = false, naked = false }: Props) {
   if (matches.length === 0) {
-    return <p className="text-center text-sm text-muted-foreground py-8">No fixtures yet.</p>
+    return (
+      <div className="flex flex-col items-center gap-2" style={{ padding: '36px 20px', textAlign: 'center' }}>
+        <span style={{ fontSize: 28, opacity: 0.35 }}>📅</span>
+        <span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>No fixtures yet.</span>
+      </div>
+    )
+  }
+
+  if (noGroup) {
+    const sorted = [...matches].sort((a, b) => {
+      const aLive = LIVE_STATUSES.has(a.status) ? 0 : 1
+      const bLive = LIVE_STATUSES.has(b.status) ? 0 : 1
+      if (aLive !== bLive) return aLive - bLive
+      return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+    })
+    const inner = sorted.map((m, i) => (
+      <MatchItem key={m.id} m={m} isLast={i === sorted.length - 1} showGroup={showGroup} />
+    ))
+    if (naked) return <div>{inner}</div>
+    return (
+      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+        {inner}
+      </div>
+    )
   }
 
   const groups = groupByDate(matches)
 
   return (
-    <div className="space-y-5">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {groups.map(({ label, matches: groupMatches }) => (
         <div key={label}>
-          {/* Date heading */}
-          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-2 px-1">
+          {/* Date label */}
+          <div style={{
+            fontSize: 11, fontWeight: 700,
+            textTransform: 'uppercase', letterSpacing: '0.5px',
+            color: 'var(--muted-clr)',
+            fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
+            marginBottom: 8, paddingLeft: 2,
+          }}>
             {label}
-          </p>
+          </div>
 
-          <div className="space-y-2">
-            {groupMatches.map((m) => {
-              const live = LIVE_STATUSES.has(m.status)
-              const scored = live || COMPLETED_STATUSES.has(m.status)
-
-              return (
-                <Link key={m.id} href={`/matches/${m.id}`} className="block">
-                  <div
-                    className={cn(
-                      'rounded-xl border border-border/50 bg-card p-3.5 hover:bg-card/80 transition-colors',
-                      live && 'border-l-[3px] border-l-green-500'
-                    )}
-                  >
-                    {/* Teams + score row */}
-                    <div className="flex items-center gap-3">
-                      {/* Home */}
-                      <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
-                        <span className="text-sm font-semibold truncate text-right">{m.homeTeam.name}</span>
-                        <Avatar className="h-7 w-7 shrink-0">
-                          <AvatarImage src={m.homeTeam.badgeUrl ?? ''} />
-                          <AvatarFallback className="text-xs">{m.homeTeam.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                      </div>
-
-                      {/* Score / time */}
-                      <div className="flex flex-col items-center shrink-0 w-20">
-                        {scored ? (
-                          <span className="text-lg font-black tabular-nums">
-                            {m.homeScore} – {m.awayScore}
-                          </span>
-                        ) : (
-                          <span className="text-sm font-semibold text-muted-foreground">
-                            {format(new Date(m.scheduledAt), 'HH:mm')}
-                          </span>
-                        )}
-                        <span
-                          className={`mt-0.5 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                            STATUS_BADGE_CLASS[m.status] ?? 'bg-muted text-muted-foreground'
-                          }`}
-                        >
-                          {formatStatusLabel(m.status)}
-                        </span>
-                      </div>
-
-                      {/* Away */}
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <Avatar className="h-7 w-7 shrink-0">
-                          <AvatarImage src={m.awayTeam.badgeUrl ?? ''} />
-                          <AvatarFallback className="text-xs">{m.awayTeam.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm font-semibold truncate">{m.awayTeam.name}</span>
-                      </div>
-                    </div>
-
-                    {/* Badges row */}
-                    {(m.round || (showGroup && m.group)) && (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {m.round && (
-                          <Badge variant="outline" className="text-[10px] h-4 px-1.5">{m.round}</Badge>
-                        )}
-                        {showGroup && m.group && (
-                          <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
-                            Group {m.group.name}
-                          </Badge>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </Link>
-              )
-            })}
+          {/* Match cards */}
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+            {groupMatches.map((m, i) => (
+              <MatchItem key={m.id} m={m} isLast={i === groupMatches.length - 1} showGroup={showGroup} />
+            ))}
           </div>
         </div>
       ))}

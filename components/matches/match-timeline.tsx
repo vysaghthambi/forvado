@@ -3,11 +3,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { Pencil, Trash2 } from 'lucide-react'
 
@@ -40,6 +35,110 @@ const EVENT_TYPES = [
   { value: 'SECOND_YELLOW',   label: '🟨🟥 2nd Yellow' },
   { value: 'SUBSTITUTION',    label: '🔄 Substitution' },
 ]
+
+const inputStyle: React.CSSProperties = {
+  background: 'var(--bg2)',
+  border: '1px solid var(--border2)',
+  borderRadius: 8,
+  padding: '9px 12px',
+  fontSize: 13,
+  color: 'var(--text)',
+  outline: 'none',
+  width: '100%',
+  boxSizing: 'border-box',
+  fontFamily: 'inherit',
+  transition: 'border-color .2s',
+}
+
+const labelStyle: React.CSSProperties = {
+  fontSize: 10,
+  fontWeight: 600,
+  color: 'var(--muted-clr)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.5px',
+}
+
+function onFocus(e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) {
+  e.target.style.borderColor = 'var(--accent-clr)'
+}
+function onBlur(e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) {
+  e.target.style.borderColor = 'var(--border2)'
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+      <div style={labelStyle}>{label}</div>
+      {children}
+    </div>
+  )
+}
+
+const overlayStyle: React.CSSProperties = {
+  position: 'fixed', inset: 0, zIndex: 1000,
+  background: 'rgba(0,0,0,.75)',
+  backdropFilter: 'blur(4px)',
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  padding: 20,
+}
+
+const modalStyle: React.CSSProperties = {
+  background: 'var(--bg1)',
+  border: '1px solid var(--border2)',
+  borderRadius: 16,
+  maxWidth: 'calc(100vw - 40px)',
+  maxHeight: '90vh',
+  display: 'flex', flexDirection: 'column',
+  boxShadow: '0 20px 60px rgba(0,0,0,.6)',
+  overflow: 'hidden',
+}
+
+const modalHeaderStyle: React.CSSProperties = {
+  padding: '16px 20px',
+  borderBottom: '1px solid var(--border)',
+  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+  flexShrink: 0,
+}
+
+const modalTitleStyle: React.CSSProperties = {
+  fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
+  fontSize: 17, fontWeight: 700, letterSpacing: '.2px', color: 'var(--text)',
+}
+
+const modalFootStyle: React.CSSProperties = {
+  padding: '13px 20px',
+  borderTop: '1px solid var(--border)',
+  display: 'flex', justifyContent: 'flex-end', gap: 8,
+  flexShrink: 0,
+}
+
+function CloseButton({ onClose }: { onClose: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClose}
+      style={{
+        width: 26, height: 26, borderRadius: 6,
+        background: 'var(--bg2)', border: '1px solid var(--border)',
+        color: 'var(--muted-clr)', fontSize: 14, cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        transition: 'all .2s', lineHeight: 1,
+      }}
+      onMouseEnter={(e) => {
+        const el = e.currentTarget as HTMLElement
+        el.style.color = 'var(--text)'
+        el.style.borderColor = 'var(--border2)'
+      }}
+      onMouseLeave={(e) => {
+        const el = e.currentTarget as HTMLElement
+        el.style.color = 'var(--muted-clr)'
+        el.style.borderColor = 'var(--border)'
+      }}
+    >
+      ✕
+    </button>
+  )
+}
 
 function getPhase(minute: number): string {
   if (minute <= 45) return 'First Half'
@@ -97,15 +196,16 @@ export function MatchTimeline({
   canDelete = false, canEdit = false,
   homeTeam, awayTeam, players = [],
 }: Props) {
-  const [events, setEvents] = useState(initialEvents)
+  const [events, setEvents]           = useState(initialEvents)
   const [deleteConfirm, setDeleteConfirm] = useState<MatchEvent | null>(null)
-  const [editEvent, setEditEvent]         = useState<MatchEvent | null>(null)
-  const [editType, setEditType]           = useState('')
-  const [editMinute, setEditMinute]       = useState('')
-  const [editTeamId, setEditTeamId]       = useState('')
-  const [editPrimary, setEditPrimary]     = useState('')
+  const [editEvent, setEditEvent]     = useState<MatchEvent | null>(null)
+  const [editType, setEditType]       = useState('')
+  const [editMinute, setEditMinute]   = useState('')
+  const [editTeamId, setEditTeamId]   = useState('')
+  const [editPrimary, setEditPrimary] = useState('')
   const [editSecondary, setEditSecondary] = useState('')
-  const [editLoading, setEditLoading]     = useState(false)
+  const [editLoading, setEditLoading] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   useEffect(() => { setEvents(initialEvents) }, [initialEvents])
 
@@ -132,7 +232,9 @@ export function MatchTimeline({
 
   async function confirmDelete() {
     if (!deleteConfirm) return
+    setDeleteLoading(true)
     const res = await fetch(`/api/matches/${matchId}/events/${deleteConfirm.id}`, { method: 'DELETE' })
+    setDeleteLoading(false)
     setDeleteConfirm(null)
     if (res.ok) { refresh(); toast.success('Event deleted') }
     else { const d = await res.json(); toast.error(d.error ?? 'Delete failed') }
@@ -253,112 +355,211 @@ export function MatchTimeline({
     <>
       <div className="space-y-0.5">{rows}</div>
 
-      {/* Delete confirmation dialog */}
-      <Dialog open={!!deleteConfirm} onOpenChange={(o) => { if (!o) setDeleteConfirm(null) }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Delete Event</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Delete{' '}
-            <span className="font-medium text-foreground">
-              {EVENT_LABELS[deleteConfirm?.type ?? ''] ?? deleteConfirm?.type}
-            </span>{' '}
-            at{' '}
-            <span className="font-medium text-foreground">{deleteConfirm?.minute}&apos;</span>
-            {deleteConfirm?.primaryUser && (
-              <> by <span className="font-medium text-foreground">{deleteConfirm.primaryUser.displayName}</span></>
-            )}
-            ? This cannot be undone.
-          </p>
-          <div className="flex gap-2 justify-end mt-2">
-            <Button variant="outline" size="sm" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
-            <Button variant="destructive" size="sm" onClick={confirmDelete}>Delete</Button>
+      {/* ── Delete confirmation modal ─────────────────────────────── */}
+      {deleteConfirm && (
+        <div style={overlayStyle} onClick={(e) => { if (e.target === e.currentTarget) setDeleteConfirm(null) }}>
+          <div style={{ ...modalStyle, width: 400 }} onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div style={modalHeaderStyle}>
+              <div style={modalTitleStyle}>Delete Event</div>
+              <CloseButton onClose={() => setDeleteConfirm(null)} />
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '20px', flex: 1 }}>
+              <p style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.6 }}>
+                Delete{' '}
+                <span style={{ fontWeight: 600, color: 'var(--text)' }}>
+                  {EVENT_LABELS[deleteConfirm.type] ?? deleteConfirm.type}
+                </span>
+                {' '}at{' '}
+                <span style={{ fontWeight: 600, color: 'var(--text)' }}>{deleteConfirm.minute}&apos;</span>
+                {deleteConfirm.primaryUser && (
+                  <> by <span style={{ fontWeight: 600, color: 'var(--text)' }}>{deleteConfirm.primaryUser.displayName}</span></>
+                )}
+                {'? '}
+                <span style={{ color: 'var(--muted-clr)' }}>This cannot be undone.</span>
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div style={modalFootStyle}>
+              <button
+                type="button"
+                onClick={() => setDeleteConfirm(null)}
+                style={{
+                  padding: '8px 18px', borderRadius: 8,
+                  background: 'transparent', border: '1px solid var(--border2)',
+                  color: 'var(--text2)', fontSize: 13, fontWeight: 500,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                disabled={deleteLoading}
+                style={{
+                  flex: 1, padding: '8px 0', borderRadius: 8,
+                  background: deleteLoading ? 'var(--bg3)' : 'var(--live)',
+                  color: deleteLoading ? 'var(--muted-clr)' : '#fff',
+                  fontSize: 13, fontWeight: 600, border: 'none',
+                  cursor: deleteLoading ? 'not-allowed' : 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                {deleteLoading ? 'Deleting…' : 'Delete Event'}
+              </button>
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
 
-      {/* Edit event dialog */}
-      <Dialog open={!!editEvent} onOpenChange={(o) => { if (!o) setEditEvent(null) }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Edit Event</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={submitEdit} className="space-y-3 mt-1">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Type</Label>
-                <Select value={editType} onValueChange={setEditType}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {EVENT_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Minute</Label>
-                <Input
-                  type="number" min={0} max={200}
-                  value={editMinute} onChange={(e) => setEditMinute(e.target.value)}
-                  className="h-8 text-xs"
-                />
-              </div>
+      {/* ── Edit event modal ──────────────────────────────────────── */}
+      {editEvent && (
+        <div style={overlayStyle} onClick={(e) => { if (e.target === e.currentTarget) setEditEvent(null) }}>
+          <div style={{ ...modalStyle, width: 460 }} onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div style={modalHeaderStyle}>
+              <div style={modalTitleStyle}>Edit Event</div>
+              <CloseButton onClose={() => setEditEvent(null)} />
             </div>
 
-            {homeTeam && awayTeam && (
-              <div className="space-y-1.5">
-                <Label className="text-xs">Team</Label>
-                <Select value={editTeamId} onValueChange={(v) => { setEditTeamId(v); setEditPrimary(''); setEditSecondary('') }}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={homeTeam.id}>{homeTeam.name}</SelectItem>
-                    <SelectItem value={awayTeam.id}>{awayTeam.name}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            {/* Body */}
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+              <form
+                id="edit-event-form"
+                onSubmit={submitEdit}
+                style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 13 }}
+              >
+                {/* Type + Minute */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <Field label="Event Type">
+                    <select
+                      value={editType}
+                      onChange={(e) => { setEditType(e.target.value); setEditPrimary(''); setEditSecondary('') }}
+                      style={inputStyle}
+                      onFocus={onFocus} onBlur={onBlur}
+                    >
+                      {EVENT_TYPES.map((t) => (
+                        <option key={t.value} value={t.value}>{t.label}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Minute">
+                    <input
+                      type="number" min={0} max={200}
+                      value={editMinute}
+                      onChange={(e) => setEditMinute(e.target.value)}
+                      style={inputStyle}
+                      onFocus={onFocus} onBlur={onBlur}
+                    />
+                  </Field>
+                </div>
 
-            {editTeamId && players.length > 0 && (
-              <div className="space-y-1.5">
-                <Label className="text-xs">
-                  {editType === 'SUBSTITUTION' ? 'Player Out' : editType === 'GOAL' || editType === 'OWN_GOAL' || editType === 'EXTRA_TIME_GOAL' ? 'Scorer' : 'Player'}
-                </Label>
-                <Select value={editPrimary || 'none'} onValueChange={(v) => setEditPrimary(v === 'none' ? '' : v)}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">— None —</SelectItem>
-                    {editTeamPlayers.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>#{p.jerseyNumber} {p.displayName}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+                {/* Team */}
+                {homeTeam && awayTeam && (
+                  <Field label="Team">
+                    <select
+                      value={editTeamId}
+                      onChange={(e) => { setEditTeamId(e.target.value); setEditPrimary(''); setEditSecondary('') }}
+                      style={inputStyle}
+                      onFocus={onFocus} onBlur={onBlur}
+                    >
+                      <option value="">Select team…</option>
+                      <option value={homeTeam.id}>{homeTeam.name}</option>
+                      <option value={awayTeam.id}>{awayTeam.name}</option>
+                    </select>
+                  </Field>
+                )}
 
-            {editTeamId && players.length > 0 && needsSecondary && (
-              <div className="space-y-1.5">
-                <Label className="text-xs">{editType === 'SUBSTITUTION' ? 'Player In' : 'Assist (optional)'}</Label>
-                <Select value={editSecondary || 'none'} onValueChange={(v) => setEditSecondary(v === 'none' ? '' : v)}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">— None —</SelectItem>
-                    {editTeamPlayers.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>#{p.jerseyNumber} {p.displayName}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+                {/* Primary player */}
+                {editTeamId && players.length > 0 && (
+                  <Field label={
+                    editType === 'SUBSTITUTION' ? 'Player Out'
+                    : editType === 'GOAL' || editType === 'OWN_GOAL' || editType === 'EXTRA_TIME_GOAL' ? 'Scorer'
+                    : 'Player'
+                  }>
+                    <select
+                      value={editPrimary || ''}
+                      onChange={(e) => setEditPrimary(e.target.value)}
+                      style={inputStyle}
+                      onFocus={onFocus} onBlur={onBlur}
+                    >
+                      <option value="">— None —</option>
+                      {editTeamPlayers.map((p) => (
+                        <option key={p.id} value={p.id}>#{p.jerseyNumber} {p.displayName}</option>
+                      ))}
+                    </select>
+                  </Field>
+                )}
 
-            <div className="flex gap-2 justify-end">
-              <Button type="button" variant="outline" size="sm" onClick={() => setEditEvent(null)}>Cancel</Button>
-              <Button type="submit" size="sm" disabled={editLoading}>
-                {editLoading ? 'Saving…' : 'Save'}
-              </Button>
+                {/* Secondary player */}
+                {editTeamId && players.length > 0 && needsSecondary && (
+                  <Field label={editType === 'SUBSTITUTION' ? 'Player In' : 'Assist (optional)'}>
+                    <select
+                      value={editSecondary || ''}
+                      onChange={(e) => setEditSecondary(e.target.value)}
+                      style={inputStyle}
+                      onFocus={onFocus} onBlur={onBlur}
+                    >
+                      <option value="">— None —</option>
+                      {editTeamPlayers.map((p) => (
+                        <option key={p.id} value={p.id}>#{p.jerseyNumber} {p.displayName}</option>
+                      ))}
+                    </select>
+                  </Field>
+                )}
+              </form>
             </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+
+            {/* Footer */}
+            <div style={modalFootStyle}>
+              <button
+                type="button"
+                onClick={() => setEditEvent(null)}
+                style={{
+                  padding: '8px 18px', borderRadius: 8,
+                  background: 'transparent', border: '1px solid var(--border2)',
+                  color: 'var(--text2)', fontSize: 13, fontWeight: 500,
+                  cursor: 'pointer', fontFamily: 'inherit', transition: 'all .2s',
+                }}
+                onMouseEnter={(e) => {
+                  const el = e.currentTarget as HTMLElement
+                  el.style.background = 'var(--bg3)'
+                  el.style.borderColor = 'var(--border3)'
+                  el.style.color = 'var(--text)'
+                }}
+                onMouseLeave={(e) => {
+                  const el = e.currentTarget as HTMLElement
+                  el.style.background = 'transparent'
+                  el.style.borderColor = 'var(--border2)'
+                  el.style.color = 'var(--text2)'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="edit-event-form"
+                disabled={editLoading}
+                style={{
+                  flex: 1, padding: '8px 0', borderRadius: 8,
+                  background: editLoading ? 'var(--bg3)' : 'var(--accent-clr)',
+                  color: editLoading ? 'var(--muted-clr)' : '#000',
+                  fontSize: 13, fontWeight: 600, border: 'none',
+                  cursor: editLoading ? 'not-allowed' : 'pointer',
+                  fontFamily: 'inherit', transition: 'background .2s',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                {editLoading ? 'Saving…' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
