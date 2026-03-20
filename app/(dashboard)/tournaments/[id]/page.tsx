@@ -36,7 +36,7 @@ export default async function TournamentDetailPage({ params }: Props) {
       include: {
         teams: {
           include: {
-            team: { select: { id: true, name: true, badgeUrl: true, homeColour: true } },
+            team: { select: { id: true, name: true, badgeUrl: true, homeColour: true, shortCode: true } },
             group: { select: { id: true, name: true } },
           },
           orderBy: { registeredAt: 'asc' },
@@ -45,8 +45,8 @@ export default async function TournamentDetailPage({ params }: Props) {
         coordinators: { include: { user: { select: { id: true, displayName: true } } } },
         matches: {
           include: {
-            homeTeam: { select: { id: true, name: true, badgeUrl: true, homeColour: true } },
-            awayTeam: { select: { id: true, name: true, badgeUrl: true, homeColour: true } },
+            homeTeam: { select: { id: true, name: true, badgeUrl: true, homeColour: true, shortCode: true } },
+            awayTeam: { select: { id: true, name: true, badgeUrl: true, homeColour: true, shortCode: true } },
             group: { select: { id: true, name: true } },
           },
           orderBy: { matchOrder: 'asc' },

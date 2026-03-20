@@ -22,7 +22,7 @@ export default async function MatchControlPage({ params }: Props) {
     include: {
       homeTeam: {
         select: {
-          id: true, name: true, homeColour: true, awayColour: true,
+          id: true, name: true, homeColour: true,
           members: {
             where: { status: 'ACTIVE' },
             include: { user: { select: { id: true, displayName: true, avatarUrl: true, position: true, jerseyNumber: true } } },
@@ -31,7 +31,7 @@ export default async function MatchControlPage({ params }: Props) {
       },
       awayTeam: {
         select: {
-          id: true, name: true, homeColour: true, awayColour: true,
+          id: true, name: true, homeColour: true,
           members: {
             where: { status: 'ACTIVE' },
             include: { user: { select: { id: true, displayName: true, avatarUrl: true, position: true, jerseyNumber: true } } },
@@ -156,8 +156,8 @@ export default async function MatchControlPage({ params }: Props) {
           completedAt: match.completedAt?.toISOString() ?? null,
           venue: match.venue,
           scheduledAt: match.scheduledAt.toISOString(),
-          homeTeam: { id: match.homeTeam.id, name: match.homeTeam.name, homeColour: match.homeTeam.homeColour, awayColour: match.homeTeam.awayColour },
-          awayTeam: { id: match.awayTeam.id, name: match.awayTeam.name, homeColour: match.awayTeam.homeColour, awayColour: match.awayTeam.awayColour },
+          homeTeam: { id: match.homeTeam.id, name: match.homeTeam.name, homeColour: match.homeTeam.homeColour },
+          awayTeam: { id: match.awayTeam.id, name: match.awayTeam.name, homeColour: match.awayTeam.homeColour },
           group: match.group,
           round: match.round,
         }}
@@ -165,6 +165,19 @@ export default async function MatchControlPage({ params }: Props) {
 
       {/* Phase Control — has own card */}
       <PhaseControl matchId={id} status={match.status} />
+
+      {/* Penalty Shootout — shown at top position during PSO */}
+      {isPSO && (
+        <PenaltyTracker
+          matchId={id}
+          status={match.status}
+          homeTeam={{ id: match.homeTeamId, name: match.homeTeam.name }}
+          awayTeam={{ id: match.awayTeamId, name: match.awayTeam.name }}
+          players={allLineupPlayers}
+          initialKicks={match.penalties}
+          canEdit
+        />
+      )}
 
       {/* Log Event — has own card */}
       <EventLogger
@@ -215,7 +228,7 @@ export default async function MatchControlPage({ params }: Props) {
       )}
 
       {/* Lineup Configuration — each LineupPanel has own card */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <LineupPanel
           matchId={id}
           teamId={match.homeTeamId}
@@ -223,7 +236,7 @@ export default async function MatchControlPage({ params }: Props) {
           members={homeMembers}
           playingMembers={match.playingMembers}
           maxSubstitutes={match.maxSubstitutes}
-          disabled={match.status === 'COMPLETED' || match.status === 'CANCELLED'}
+          disabled={match.status !== 'SCHEDULED'}
         />
         <LineupPanel
           matchId={id}
@@ -232,22 +245,9 @@ export default async function MatchControlPage({ params }: Props) {
           members={awayMembers}
           playingMembers={match.playingMembers}
           maxSubstitutes={match.maxSubstitutes}
-          disabled={match.status === 'COMPLETED' || match.status === 'CANCELLED'}
+          disabled={match.status !== 'SCHEDULED'}
         />
       </div>
-
-      {/* Penalty Shootout — has own card */}
-      {isPSO && (
-        <PenaltyTracker
-          matchId={id}
-          status={match.status}
-          homeTeam={{ id: match.homeTeamId, name: match.homeTeam.name }}
-          awayTeam={{ id: match.awayTeamId, name: match.awayTeam.name }}
-          players={allLineupPlayers}
-          initialKicks={match.penalties}
-          canEdit
-        />
-      )}
 
       {/* Back link */}
       <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: 8 }}>

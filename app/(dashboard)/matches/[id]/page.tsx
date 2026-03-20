@@ -79,8 +79,8 @@ export default async function MatchPage({ params }: Props) {
   const match = await prisma.match.findUnique({
     where: { id },
     include: {
-      homeTeam: { select: { id: true, name: true, homeColour: true, awayColour: true } },
-      awayTeam: { select: { id: true, name: true, homeColour: true, awayColour: true } },
+      homeTeam: { select: { id: true, name: true, homeColour: true, shortCode: true } },
+      awayTeam: { select: { id: true, name: true, homeColour: true, shortCode: true } },
       tournament: { select: { id: true, name: true } },
       playerOfMatch: { select: { id: true, displayName: true } },
       group: { select: { id: true, name: true } },
@@ -140,8 +140,8 @@ export default async function MatchPage({ params }: Props) {
   }))
 
   // Team colour for lineup dot
-  const homeFg = match.homeTeam.awayColour ?? '#7ab4ff'
-  const awayFg = match.awayTeam.awayColour ?? '#2ddb7f'
+  const homeFg = '#7ab4ff'
+  const awayFg = '#2ddb7f'
 
   const sectionLbl: React.CSSProperties = {
     padding: '10px 14px 4px',

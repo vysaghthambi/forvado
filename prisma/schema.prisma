@@ -122,7 +122,7 @@ model Team {
   name                String
   badgeUrl            String?
   homeColour          String?
-  awayColour          String?
+  shortCode           String?
   description         String?
   ownerId             String
   isAcceptingRequests Boolean  @default(false)

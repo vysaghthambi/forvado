@@ -27,14 +27,14 @@ export default async function TournamentFixturesPage({ params }: Props) {
       },
       teams: {
         include: {
-          team: { select: { id: true, name: true, badgeUrl: true, homeColour: true } },
+          team: { select: { id: true, name: true, badgeUrl: true, homeColour: true, shortCode: true } },
           group: { select: { id: true, name: true } },
         },
       },
       matches: {
         include: {
-          homeTeam: { select: { id: true, name: true, badgeUrl: true, homeColour: true } },
-          awayTeam: { select: { id: true, name: true, badgeUrl: true, homeColour: true } },
+          homeTeam: { select: { id: true, name: true, badgeUrl: true, homeColour: true, shortCode: true } },
+          awayTeam: { select: { id: true, name: true, badgeUrl: true, homeColour: true, shortCode: true } },
           group: { select: { id: true, name: true } },
         },
         orderBy: { matchOrder: 'asc' },
@@ -90,13 +90,14 @@ export default async function TournamentFixturesPage({ params }: Props) {
               matchTime={tournament.matchTime}
               playingMembers={tournament.playingMembers}
               maxSubstitutes={tournament.maxSubstitutes}
+              venue={tournament.venue ?? ''}
             />
           )}
         </div>
       </div>
 
       {/* Full fixtures list */}
-      <FixturesList matches={tournament.matches} showGroup={tournament.format === 'GROUP_KNOCKOUT'} />
+      <FixturesList matches={tournament.matches} showGroup={tournament.format === 'GROUP_KNOCKOUT'} canManage={canManage} />
     </div>
   )
 }

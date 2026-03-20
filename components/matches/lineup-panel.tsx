@@ -70,10 +70,12 @@ export function LineupPanel({
   const [dragOver, setDragOver] = useState<'playing' | 'bench' | 'none' | null>(null)
   const [loading, setLoading]   = useState(false)
   const dragRef = useRef<{ userId: string; fromSection: 'playing' | 'bench' | 'none' } | null>(null)
+  const submittedStateRef = useRef<string | null>(null)
 
   const playing    = players.filter((p) => p.section === 'playing')
   const bench      = players.filter((p) => p.section === 'bench')
   const notPlaying = players.filter((p) => p.section === 'none')
+  const isDirty = submittedStateRef.current === null || JSON.stringify(players) !== submittedStateRef.current
 
   function updatePlayer(userId: string, field: 'jerseyNumber' | 'position', value: string) {
     setPlayers((prev) =>
@@ -130,6 +132,7 @@ export function LineupPanel({
     setLoading(false)
     if (!res.ok) { toast.error(data.error ?? 'Failed to submit lineup'); return }
     toast.success(`${teamName} lineup submitted!`)
+    submittedStateRef.current = JSON.stringify(players)
     router.refresh()
   }
 
@@ -239,7 +242,7 @@ export function LineupPanel({
           className="w-full"
           size="sm"
           onClick={submitLineup}
-          disabled={playing.length !== playingMembers || loading}
+          disabled={playing.length !== playingMembers || loading || !isDirty}
         >
           {loading
             ? <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />Submitting...</>

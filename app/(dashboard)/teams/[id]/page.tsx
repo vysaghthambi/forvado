@@ -49,7 +49,7 @@ export default async function TeamDetailPage({ params }: Props) {
               {team.homeColour && (
                 <div
                   className="absolute -inset-0.5 rounded-2xl opacity-50"
-                  style={{ background: `linear-gradient(135deg, ${team.homeColour}, ${team.awayColour ?? team.homeColour})` }}
+                  style={{ background: `linear-gradient(135deg, ${team.homeColour}, ${team.homeColour})` }}
                 />
               )}
               <Avatar className="relative h-20 w-20 rounded-2xl">

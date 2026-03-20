@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import Link from 'next/link'
 
@@ -13,8 +12,7 @@ const schema = z.object({
   name: z.string().min(2, 'Min 2 characters').max(60, 'Max 60 characters'),
   description: z.string().max(500).optional(),
   homeColour: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid hex colour').optional().or(z.literal('')),
-  awayColour: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid hex colour').optional().or(z.literal('')),
-  badgeUrl: z.string().optional(),
+  shortCode: z.string().min(2).max(3).regex(/^[A-Z]+$/, 'Must be 2-3 uppercase letters').optional().or(z.literal('')),
   isAcceptingRequests: z.boolean().optional(),
 })
 
@@ -65,20 +63,16 @@ function ErrorMsg({ msg }: { msg?: string }) {
 
 export function CreateTeamForm() {
   const router = useRouter()
-  const [badgePreview, setBadgePreview] = useState<string | null>(null)
-  const [uploading, setUploading] = useState(false)
-  const supabase = createClient()
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: '', description: '', homeColour: '#1a3a7a', awayColour: '#ffffff', isAcceptingRequests: true },
+    defaultValues: { name: '', description: '', homeColour: '#1a3a7a', shortCode: '', isAcceptingRequests: true },
   })
 
   const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = form
 
   const teamName = watch('name')
   const homeColour = watch('homeColour') || '#1a3a7a'
-  const isAccepting = watch('isAcceptingRequests')
 
   // Derive foreground colour from preset, or fall back to white
   const preset = COLOUR_PRESETS.find(([bg]) => bg === homeColour)
@@ -87,22 +81,6 @@ export function CreateTeamForm() {
     ? teamName.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()
     : 'TM'
 
-  async function handleBadgeUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (file.size > 2 * 1024 * 1024) { toast.error('Badge must be under 2MB'); return }
-
-    setUploading(true)
-    const fileName = `badge-${Date.now()}.${file.name.split('.').pop()}`
-    const { data, error } = await supabase.storage.from('team-badges').upload(fileName, file, { upsert: true })
-
-    if (error || !data) { toast.error('Upload failed'); setUploading(false); return }
-    const { data: urlData } = supabase.storage.from('team-badges').getPublicUrl(data.path)
-    setValue('badgeUrl', urlData.publicUrl)
-    setBadgePreview(urlData.publicUrl)
-    setUploading(false)
-  }
-
   async function onSubmit(values: FormValues) {
     const res = await fetch('/api/teams', {
       method: 'POST',
@@ -110,8 +88,7 @@ export function CreateTeamForm() {
       body: JSON.stringify({
         ...values,
         homeColour: values.homeColour || null,
-        awayColour: values.awayColour || null,
-        badgeUrl: values.badgeUrl || null,
+        shortCode: values.shortCode || null,
       }),
     })
     const data = await res.json()
@@ -149,32 +126,28 @@ export function CreateTeamForm() {
               position: 'relative',
               border: `1px solid ${homeColour}66`,
             }}>
-              {badgePreview ? (
-                <img src={badgePreview} alt="badge" style={{ width: 72, height: 72, objectFit: 'contain', borderRadius: 12 }} />
-              ) : (
+              <div style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+              }}>
                 <div style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                  fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
+                  fontSize: 36, fontWeight: 800, color: fgColour, letterSpacing: 2,
+                  lineHeight: 1,
                 }}>
-                  <div style={{
-                    fontFamily: 'var(--font-heading), Rajdhani, sans-serif',
-                    fontSize: 36, fontWeight: 800, color: fgColour, letterSpacing: 2,
-                    lineHeight: 1,
-                  }}>
-                    {initials}
-                  </div>
-                  {teamName && (
-                    <div style={{ fontSize: 12, fontWeight: 600, color: fgColour, opacity: 0.8 }}>
-                      {teamName}
-                    </div>
-                  )}
+                  {watch('shortCode') || initials}
                 </div>
-              )}
+                {teamName && (
+                  <div style={{ fontSize: 12, fontWeight: 600, color: fgColour, opacity: 0.8 }}>
+                    {teamName}
+                  </div>
+                )}
+              </div>
             </div>
           </FormGroup>
 
-          {/* Home colour swatches */}
+          {/* Team colour swatches */}
           <FormGroup>
-            <label style={labelStyle}>Home Colour</label>
+            <label style={labelStyle}>Team Colour</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               {COLOUR_PRESETS.map(([bg]) => {
                 const isSelected = homeColour === bg
@@ -212,32 +185,7 @@ export function CreateTeamForm() {
             <ErrorMsg msg={errors.homeColour?.message} />
           </FormGroup>
 
-          {/* Away colour */}
-          <FormGroup>
-            <label style={labelStyle}>Away Colour</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <input
-                type="color"
-                value={watch('awayColour') || '#ffffff'}
-                onChange={(e) => setValue('awayColour', e.target.value)}
-                style={{
-                  width: 36, height: 36, borderRadius: 8,
-                  border: '1px solid var(--border2)', cursor: 'pointer',
-                  padding: 3, background: 'var(--bg2)',
-                }}
-              />
-              <input
-                style={{ ...inputStyle, maxWidth: 140 }}
-                placeholder="#ffffff"
-                {...register('awayColour')}
-                onFocus={(e) => (e.target.style.borderColor = 'var(--accent-clr)')}
-                onBlur={(e) => (e.target.style.borderColor = errors.awayColour ? 'var(--live)' : 'var(--border2)')}
-              />
-            </div>
-            <ErrorMsg msg={errors.awayColour?.message} />
-          </FormGroup>
-
-          {/* Name + Badge upload row */}
+          {/* Name + Short Code row */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <FormGroup>
               <label style={labelStyle}>Team Name *</label>
@@ -252,26 +200,17 @@ export function CreateTeamForm() {
             </FormGroup>
 
             <FormGroup>
-              <label style={labelStyle}>Badge Image</label>
-              <label
-                htmlFor="badge-upload"
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  gap: 7, height: 38, borderRadius: 8,
-                  border: '1px dashed var(--border2)',
-                  background: 'var(--bg2)',
-                  fontSize: 12, fontWeight: 500,
-                  color: uploading ? 'var(--muted-clr)' : 'var(--text2)',
-                  cursor: uploading ? 'not-allowed' : 'pointer',
-                  transition: 'border-color .15s',
-                  boxSizing: 'border-box', width: '100%',
-                }}
-                onMouseEnter={(e) => { if (!uploading) (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent-clr)' }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border2)' }}
-              >
-                {uploading ? 'Uploading…' : badgePreview ? '✓ Uploaded' : '↑ Upload badge'}
-              </label>
-              <input id="badge-upload" type="file" accept="image/*" style={{ display: 'none' }} onChange={handleBadgeUpload} disabled={uploading} />
+              <label style={labelStyle}>Short Code *</label>
+              <input
+                style={{ ...inputStyle, textTransform: 'uppercase' }}
+                placeholder="e.g. FCB"
+                maxLength={3}
+                {...register('shortCode')}
+                onChange={(e) => setValue('shortCode', e.target.value.toUpperCase().replace(/[^A-Z]/g, ''))}
+                onFocus={(e) => (e.target.style.borderColor = 'var(--accent-clr)')}
+                onBlur={(e) => (e.target.style.borderColor = errors.shortCode ? 'var(--live)' : 'var(--border2)')}
+              />
+              <ErrorMsg msg={errors.shortCode?.message} />
             </FormGroup>
           </div>
 
@@ -288,46 +227,6 @@ export function CreateTeamForm() {
             />
             <ErrorMsg msg={errors.description?.message} />
           </FormGroup>
-
-          {/* Accept join requests */}
-          <label
-            htmlFor="accepting"
-            style={{
-              display: 'flex', alignItems: 'center', gap: 12,
-              padding: '12px 14px', borderRadius: 9,
-              border: `1px solid ${isAccepting ? 'var(--accent-clr)' : 'var(--border)'}`,
-              background: isAccepting ? 'var(--accent-dim)' : 'var(--bg2)',
-              cursor: 'pointer', transition: 'all .15s',
-            }}
-          >
-            <div
-              style={{
-                width: 18, height: 18, borderRadius: 5, flexShrink: 0,
-                border: `1.5px solid ${isAccepting ? 'var(--accent-clr)' : 'var(--border2)'}`,
-                background: isAccepting ? 'var(--accent-clr)' : 'transparent',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 11, fontWeight: 700, color: '#000',
-                transition: 'all .15s',
-              }}
-            >
-              {isAccepting && '✓'}
-            </div>
-            <input
-              type="checkbox"
-              id="accepting"
-              checked={isAccepting ?? true}
-              onChange={(e) => setValue('isAcceptingRequests', e.target.checked)}
-              style={{ display: 'none' }}
-            />
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)' }}>
-                Accept join requests from players
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--muted-clr)', marginTop: 2 }}>
-                Players can request to join this team
-              </div>
-            </div>
-          </label>
 
         </div>
       </div>

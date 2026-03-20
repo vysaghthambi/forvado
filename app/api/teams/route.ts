@@ -7,7 +7,7 @@ const createSchema = z.object({
   name: z.string().min(2).max(60),
   description: z.string().max(500).optional().nullable(),
   homeColour: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid hex colour').optional().nullable(),
-  awayColour: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid hex colour').optional().nullable(),
+  shortCode: z.string().min(2).max(3).regex(/^[A-Z]{2,3}$/).optional().nullable(),
   badgeUrl: z.string().url().optional().nullable(),
   isAcceptingRequests: z.boolean().optional(),
 })

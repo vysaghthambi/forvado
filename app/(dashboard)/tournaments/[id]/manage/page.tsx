@@ -26,7 +26,7 @@ export default async function ManageTournamentPage({ params }: Props) {
       },
       teams: {
         include: {
-          team: { select: { id: true, name: true, badgeUrl: true, homeColour: true } },
+          team: { select: { id: true, name: true, badgeUrl: true, homeColour: true, shortCode: true } },
           group: { select: { id: true, name: true } },
         },
         orderBy: { registeredAt: 'asc' },

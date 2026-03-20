@@ -23,9 +23,12 @@ interface Props {
   matchTime: number
   playingMembers: number
   maxSubstitutes: number
+  venue: string
 }
 
 type MatchType = 'group' | 'knockout'
+
+const KNOCKOUT_ROUNDS = ['ROUND OF 32', 'PRE-QUARTER FINAL', 'QUARTER FINAL', 'SEMI-FINAL', 'FINAL']
 
 const inputStyle: React.CSSProperties = {
   background: 'var(--bg2)',
@@ -68,7 +71,7 @@ function onBlur(e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) {
 }
 
 export function CreateFixtureDialog({
-  tournamentId, format, teams, groups, matchCount, matchTime, playingMembers, maxSubstitutes,
+  tournamentId, format, teams, groups, matchCount, matchTime, playingMembers, maxSubstitutes, venue: defaultVenue,
 }: Props) {
   const router = useRouter()
   const [open, setOpen]       = useState(false)
@@ -82,8 +85,8 @@ export function CreateFixtureDialog({
   const [homeTeamId, setHomeTeamId]           = useState('')
   const [awayTeamId, setAwayTeamId]           = useState('')
   const [scheduledAt, setScheduledAt]         = useState('')
-  const [venue, setVenue]                     = useState('')
-  const [round, setRound]                     = useState('')
+  const [venue, setVenue]                     = useState(defaultVenue)
+  const [round, setRound]                     = useState(isGroupKnockout ? 'GROUP' : '')
   const [matchTimeVal, setMatchTimeVal]       = useState(String(matchTime))
   const [playingCount, setPlayingCount]       = useState(String(playingMembers))
   const [subsCount, setSubsCount]             = useState(String(maxSubstitutes))
@@ -101,8 +104,8 @@ export function CreateFixtureDialog({
     setHomeTeamId('')
     setAwayTeamId('')
     setScheduledAt('')
-    setVenue('')
-    setRound('')
+    setVenue(defaultVenue)
+    setRound(isGroupKnockout ? 'GROUP' : '')
     setMatchTimeVal(String(matchTime))
     setPlayingCount(String(playingMembers))
     setSubsCount(String(maxSubstitutes))
@@ -118,6 +121,7 @@ export function CreateFixtureDialog({
     setSelectedGroupId('')
     setHomeTeamId('')
     setAwayTeamId('')
+    setRound(t === 'group' ? 'GROUP' : '')
   }
 
   function handleGroupChange(gid: string) {
@@ -326,18 +330,26 @@ export function CreateFixtureDialog({
                   </Field>
                 )}
 
-                {/* Round — knockout only */}
-                {isGroupKnockout && matchType === 'knockout' && (
-                  <Field label="Round">
-                    <input
-                      placeholder="e.g. Semi-Final"
-                      value={round}
-                      onChange={(e) => setRound(e.target.value)}
-                      style={inputStyle}
-                      onFocus={onFocus} onBlur={onBlur}
-                    />
-                  </Field>
-                )}
+                {/* Round */}
+                <Field label="Round">
+                  <select
+                    value={round}
+                    onChange={(e) => setRound(e.target.value)}
+                    disabled={isGroupMatch}
+                    style={{ ...inputStyle, opacity: isGroupMatch ? 0.65 : 1, cursor: isGroupMatch ? 'not-allowed' : 'pointer' }}
+                    onFocus={isGroupMatch ? undefined : onFocus}
+                    onBlur={isGroupMatch ? undefined : onBlur}
+                  >
+                    {isGroupMatch ? (
+                      <option value="GROUP">Group</option>
+                    ) : (
+                      <>
+                        <option value="">None</option>
+                        {KNOCKOUT_ROUNDS.map((r) => <option key={r} value={r}>{r}</option>)}
+                      </>
+                    )}
+                  </select>
+                </Field>
 
                 {/* Home + Away teams */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -371,19 +383,17 @@ export function CreateFixtureDialog({
                   </Field>
                 </div>
 
-                {/* Date & Time */}
-                <Field label="Date & Time" required>
-                  <input
-                    type="datetime-local"
-                    value={scheduledAt}
-                    onChange={(e) => setScheduledAt(e.target.value)}
-                    style={inputStyle}
-                    onFocus={onFocus} onBlur={onBlur}
-                  />
-                </Field>
-
-                {/* Venue + Round (group type) */}
+                {/* Date & Time + Venue */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <Field label="Date & Time" required>
+                    <input
+                      type="datetime-local"
+                      value={scheduledAt}
+                      onChange={(e) => setScheduledAt(e.target.value)}
+                      style={inputStyle}
+                      onFocus={onFocus} onBlur={onBlur}
+                    />
+                  </Field>
                   <Field label="Venue">
                     <input
                       placeholder="Optional"
@@ -393,17 +403,6 @@ export function CreateFixtureDialog({
                       onFocus={onFocus} onBlur={onBlur}
                     />
                   </Field>
-                  {(!isGroupKnockout || matchType === 'group') && (
-                    <Field label="Round">
-                      <input
-                        placeholder="e.g. Round 3"
-                        value={round}
-                        onChange={(e) => setRound(e.target.value)}
-                        style={inputStyle}
-                        onFocus={onFocus} onBlur={onBlur}
-                      />
-                    </Field>
-                  )}
                 </div>
 
                 {/* Match settings box */}

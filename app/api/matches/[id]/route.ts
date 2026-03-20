@@ -27,8 +27,8 @@ export async function GET(_req: NextRequest, { params }: Props) {
   const match = await prisma.match.findUnique({
     where: { id },
     include: {
-      homeTeam: { select: { id: true, name: true, badgeUrl: true } },
-      awayTeam: { select: { id: true, name: true, badgeUrl: true } },
+      homeTeam: { select: { id: true, name: true, badgeUrl: true, shortCode: true } },
+      awayTeam: { select: { id: true, name: true, badgeUrl: true, shortCode: true } },
       tournament: { select: { id: true, name: true } },
       group: { select: { id: true, name: true } },
       events: {
@@ -73,8 +73,8 @@ export async function PATCH(req: NextRequest, { params }: Props) {
       ...(d.status ? { status: d.status, ...(d.status === 'COMPLETED' ? { completedAt: new Date() } : {}) } : {}),
     },
     include: {
-      homeTeam: { select: { id: true, name: true, badgeUrl: true } },
-      awayTeam: { select: { id: true, name: true, badgeUrl: true } },
+      homeTeam: { select: { id: true, name: true, badgeUrl: true, shortCode: true } },
+      awayTeam: { select: { id: true, name: true, badgeUrl: true, shortCode: true } },
     },
   })
 

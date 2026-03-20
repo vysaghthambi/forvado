@@ -208,8 +208,12 @@ export function DashboardNav({ user }: Props) {
 
       {/* ── Mobile Bottom Navigation ───────────────────────────────────────── */}
       <nav
-        className="md:hidden fixed bottom-0 inset-x-0 z-50 border-t safe-area-inset-bottom"
-        style={{ background: 'var(--sidebar, #0f1018)', borderColor: 'var(--border, #232638)' }}
+        className="md:hidden border-t"
+        style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999,
+          background: 'var(--sidebar, #0f1018)', borderColor: 'var(--border, #232638)',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        }}
       >
         <div className="flex h-16 items-stretch">
           {/* Dashboard */}
