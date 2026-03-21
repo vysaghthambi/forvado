@@ -258,6 +258,7 @@ export function TournamentAdminPanel({ tournamentId, status, isPublished, coordi
   }
 
   return (
+    <>
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
 
       {/* ── Left col ─────────────────────────────────── */}
@@ -643,5 +644,6 @@ export function TournamentAdminPanel({ tournamentId, status, isPublished, coordi
         </div>
       </div>
     )}
+    </>
   )
 }
