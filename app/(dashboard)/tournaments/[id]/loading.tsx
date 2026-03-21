@@ -57,10 +57,12 @@ export default function TournamentDetailLoading() {
           <S w={100} h={12} r={4} />
         </div>
         {[...Array(6)].map((_, i) => (
-          <div key={i} style={{ display: 'grid', gridTemplateColumns: '24px 1fr repeat(5,48px)', gap: 12, padding: '11px 16px', borderBottom: '1px solid rgba(35,38,56,.4)', alignItems: 'center' }}>
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 16px', borderBottom: '1px solid rgba(35,38,56,.4)' }}>
             <S w={16} h={12} r={3} />
-            <S w={120} h={12} r={4} />
-            {[...Array(5)].map((__, j) => <S key={j} w={28} h={12} r={3} />)}
+            <div style={{ flex: 1, minWidth: 0 }}><S w="60%" h={12} r={4} /></div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {[...Array(4)].map((__, j) => <S key={j} w={28} h={12} r={3} />)}
+            </div>
           </div>
         ))}
       </div>

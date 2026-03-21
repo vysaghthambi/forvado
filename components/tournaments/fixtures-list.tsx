@@ -173,7 +173,7 @@ function MatchItem({ m, isLast, showGroup, canManage }: { m: Match; isLast: bool
                 </div>
                 {m.homePenaltyScore !== null && m.homePenaltyScore !== undefined && (
                   <div style={{ fontSize: 9, color: 'var(--muted-clr)', marginTop: 1 }}>
-                    ({m.homePenaltyScore} – {m.awayPenaltyScore} pens)
+                    ({m.homePenaltyScore} – {m.awayPenaltyScore})
                   </div>
                 )}
               </div>

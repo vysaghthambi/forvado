@@ -92,6 +92,8 @@ export function TournamentAdminPanel({ tournamentId, status, isPublished, coordi
   const [newGroupName, setNewGroupName] = useState('')
   const [loadingGroup, setLoadingGroup] = useState(false)
   const [loadingCoordinator, setLoadingCoordinator] = useState('')
+  const [confirmDeleteTeam, setConfirmDeleteTeam] = useState<{ teamId: string; name: string } | null>(null)
+  const [confirmDeleteGroup, setConfirmDeleteGroup] = useState<{ groupId: string; name: string } | null>(null)
   const [coordSearch, setCoordSearch] = useState('')
   const [coordResults, setCoordResults] = useState<{ id: string; displayName: string; email: string }[]>([])
   const [coordSearching, setCoordSearching] = useState(false)
@@ -126,6 +128,7 @@ export function TournamentAdminPanel({ tournamentId, status, isPublished, coordi
   }
 
   async function removeTeam(teamId: string) {
+    setConfirmDeleteTeam(null)
     setLoadingRemoveTeam(teamId)
     const res = await fetch(`/api/tournaments/${tournamentId}/teams/${teamId}`, { method: 'DELETE' })
     const data = await res.json()
@@ -169,6 +172,7 @@ export function TournamentAdminPanel({ tournamentId, status, isPublished, coordi
   }
 
   async function deleteGroup(groupId: string) {
+    setConfirmDeleteGroup(null)
     const res = await fetch(`/api/tournaments/${tournamentId}/groups/${groupId}`, { method: 'DELETE' })
     const data = await res.json()
     if (!res.ok) { toast.error(data.error ?? 'Failed'); return }
@@ -254,6 +258,7 @@ export function TournamentAdminPanel({ tournamentId, status, isPublished, coordi
   }
 
   return (
+    <>
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
 
       {/* ── Left col ─────────────────────────────────── */}
@@ -265,16 +270,19 @@ export function TournamentAdminPanel({ tournamentId, status, isPublished, coordi
             title="Tournament Status"
             action={
               <button
-                onClick={togglePublish}
-                disabled={loadingPublish}
+                onClick={!isPublished ? togglePublish : undefined}
+                disabled={loadingPublish || isPublished}
+                title={isPublished ? 'Published tournaments cannot be unpublished' : undefined}
                 style={{
                   ...btnGhost,
-                  color: isPublished ? 'var(--live)' : 'var(--green)',
-                  borderColor: isPublished ? 'var(--live)' : 'var(--green)',
+                  color: isPublished ? 'var(--green)' : 'var(--muted-clr)',
+                  borderColor: isPublished ? 'var(--green)' : 'var(--border)',
                   display: 'flex', alignItems: 'center', gap: 5,
+                  cursor: isPublished ? 'default' : 'pointer',
+                  opacity: isPublished ? 1 : undefined,
                 }}
               >
-                {loadingPublish ? <Spinner /> : (isPublished ? '● Published' : '○ Unpublished')}
+                {loadingPublish ? <Spinner /> : (isPublished ? '✓ Published' : '○ Publish')}
               </button>
             }
           >
@@ -437,7 +445,7 @@ export function TournamentAdminPanel({ tournamentId, status, isPublished, coordi
                       <span style={{ flex: 1, fontSize: 12, color: 'var(--text)', minWidth: 0 }} className="truncate">{team.name}</span>
                       {group && <span style={{ fontSize: 10, color: 'var(--muted-clr)' }}>Grp {group.name}</span>}
                       <button
-                        onClick={() => removeTeam(team.id)}
+                        onClick={() => setConfirmDeleteTeam({ teamId: team.id, name: team.name })}
                         disabled={loadingRemoveTeam === team.id}
                         style={{ ...btnDanger, display: 'flex', alignItems: 'center' }}
                       >
@@ -535,7 +543,7 @@ export function TournamentAdminPanel({ tournamentId, status, isPublished, coordi
                     </span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 10, color: 'var(--muted-clr)' }}>{g.teams.length} team{g.teams.length !== 1 ? 's' : ''}</span>
-                      <button onClick={() => deleteGroup(g.id)} style={btnDanger}>Remove</button>
+                      <button onClick={() => setConfirmDeleteGroup({ groupId: g.id, name: g.name })} style={btnDanger}>Remove</button>
                     </div>
                   </div>
                   {/* Teams in group */}
@@ -588,5 +596,54 @@ export function TournamentAdminPanel({ tournamentId, status, isPublished, coordi
         )}
       </div>
     </div>
+
+    {/* ── Confirm delete team ─────────────────────────── */}
+    {confirmDeleteTeam && (
+      <div
+        onClick={(e) => { if (e.target === e.currentTarget) setConfirmDeleteTeam(null) }}
+        style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+      >
+        <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--bg1)', border: '1px solid var(--border2)', borderRadius: 16, width: 380, maxWidth: 'calc(100vw - 40px)', boxShadow: '0 20px 60px rgba(0,0,0,.6)', overflow: 'hidden' }}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontFamily: 'var(--font-heading), Rajdhani, sans-serif', fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Remove Team</span>
+            <button onClick={() => setConfirmDeleteTeam(null)} style={{ width: 26, height: 26, borderRadius: 6, background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--muted-clr)', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+          </div>
+          <div style={{ padding: 20 }}>
+            <p style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.6 }}>
+              Remove <span style={{ fontWeight: 600, color: 'var(--text)' }}>{confirmDeleteTeam.name}</span> from this tournament?
+            </p>
+          </div>
+          <div style={{ padding: '13px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <button onClick={() => setConfirmDeleteTeam(null)} style={{ padding: '7px 16px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text2)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>Cancel</button>
+            <button onClick={() => removeTeam(confirmDeleteTeam.teamId)} style={{ padding: '7px 18px', borderRadius: 8, background: 'var(--live)', color: '#fff', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer' }}>Remove</button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* ── Confirm delete group ─────────────────────────── */}
+    {confirmDeleteGroup && (
+      <div
+        onClick={(e) => { if (e.target === e.currentTarget) setConfirmDeleteGroup(null) }}
+        style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+      >
+        <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--bg1)', border: '1px solid var(--border2)', borderRadius: 16, width: 380, maxWidth: 'calc(100vw - 40px)', boxShadow: '0 20px 60px rgba(0,0,0,.6)', overflow: 'hidden' }}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontFamily: 'var(--font-heading), Rajdhani, sans-serif', fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Delete Group</span>
+            <button onClick={() => setConfirmDeleteGroup(null)} style={{ width: 26, height: 26, borderRadius: 6, background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--muted-clr)', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+          </div>
+          <div style={{ padding: 20 }}>
+            <p style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.6 }}>
+              Delete <span style={{ fontWeight: 600, color: 'var(--text)' }}>Group {confirmDeleteGroup.name}</span>? Teams in this group will be unassigned.
+            </p>
+          </div>
+          <div style={{ padding: '13px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <button onClick={() => setConfirmDeleteGroup(null)} style={{ padding: '7px 16px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text2)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>Cancel</button>
+            <button onClick={() => deleteGroup(confirmDeleteGroup.groupId)} style={{ padding: '7px 18px', borderRadius: 8, background: 'var(--live)', color: '#fff', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer' }}>Delete</button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }

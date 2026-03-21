@@ -26,13 +26,7 @@ export async function POST(_req: NextRequest, { params }: Props) {
   if (!tournament) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   if (tournament.isPublished) {
-    // Unpublish: revert to DRAFT
-    const updated = await prisma.tournament.update({
-      where: { id },
-      data: { isPublished: false, status: 'DRAFT' },
-      select: { id: true, isPublished: true, status: true },
-    })
-    return NextResponse.json({ isPublished: updated.isPublished, status: updated.status })
+    return NextResponse.json({ error: 'A published tournament cannot be unpublished' }, { status: 409 })
   }
 
   // Publishing — validate team count

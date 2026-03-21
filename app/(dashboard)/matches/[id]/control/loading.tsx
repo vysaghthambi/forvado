@@ -45,17 +45,17 @@ export default function MatchControlLoading() {
       {/* Compact score hero */}
       <div style={{ background: 'linear-gradient(155deg,#0c1322 0%,#12102a 50%,#0f1a12 100%)', border: '1px solid var(--border)', borderRadius: 12, padding: '18px 22px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 20, alignItems: 'center' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-            <S w={58} h={58} r={13} />
-            <S w={100} h={16} r={5} />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            <S w={40} h={40} r={10} />
+            <S w="80%" h={14} r={5} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-            <S w={60} h={11} r={4} />
-            <S w={90} h={48} r={8} />
+            <S w={50} h={10} r={4} />
+            <S w={80} h={44} r={8} />
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-            <S w={58} h={58} r={13} />
-            <S w={100} h={16} r={5} />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            <S w={40} h={40} r={10} />
+            <S w="80%" h={14} r={5} />
           </div>
         </div>
       </div>
@@ -102,8 +102,8 @@ export default function MatchControlLoading() {
         </div>
       </Card>
 
-      {/* Lineup panels — 2 col */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      {/* Lineup panels — 2 col on desktop, stacked on mobile */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {[...Array(2)].map((_, t) => (
           <Card key={t} headerLabel={100} headerAction>
             {[...Array(5)].map((__, i) => (

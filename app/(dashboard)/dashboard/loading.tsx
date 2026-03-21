@@ -34,7 +34,7 @@ export default function DashboardLoading() {
       </div>
 
       {/* 2-col grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, alignItems: 'start' }}>
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_300px] lg:grid-cols-[1fr_340px] gap-4 items-start">
 
         {/* Left — Active Tournaments card */}
         <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>

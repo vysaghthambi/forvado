@@ -36,7 +36,7 @@ async function _calculateStandings(tournamentId: string): Promise<StandingRow[]>
       teams: { include: { team: { select: { id: true, name: true, badgeUrl: true } } } },
       matches: {
         where: { status: 'COMPLETED' },
-        select: { homeTeamId: true, awayTeamId: true, homeScore: true, awayScore: true },
+        select: { homeTeamId: true, awayTeamId: true, homeScore: true, awayScore: true, homePenaltyScore: true, awayPenaltyScore: true },
         orderBy: { matchOrder: 'asc' },
       },
     },
@@ -66,6 +66,15 @@ async function _calculateStandings(tournamentId: string): Promise<StandingRow[]>
     } else if (m.homeScore < m.awayScore) {
       away.won++; away.points += 3; home.lost++
       away.form.push('W'); home.form.push('L')
+    } else if (m.homePenaltyScore !== null && m.awayPenaltyScore !== null) {
+      // Draw in regular time but went to penalties — penalty winner gets 3 pts
+      if (m.homePenaltyScore > m.awayPenaltyScore) {
+        home.won++; home.points += 3; away.lost++
+        home.form.push('W'); away.form.push('L')
+      } else {
+        away.won++; away.points += 3; home.lost++
+        away.form.push('W'); home.form.push('L')
+      }
     } else {
       home.drawn++; home.points += 1; away.drawn++; away.points += 1
       home.form.push('D'); away.form.push('D')
@@ -101,7 +110,7 @@ async function _calculateGroupStandings(
 
   const completedMatches = await prisma.match.findMany({
     where: { tournamentId, status: 'COMPLETED' },
-    select: { groupId: true, homeTeamId: true, awayTeamId: true, homeScore: true, awayScore: true },
+    select: { groupId: true, homeTeamId: true, awayTeamId: true, homeScore: true, awayScore: true, homePenaltyScore: true, awayPenaltyScore: true },
     orderBy: { matchOrder: 'asc' },
   })
 
@@ -134,6 +143,14 @@ async function _calculateGroupStandings(
       } else if (m.homeScore < m.awayScore) {
         away.won++; away.points += 3; home.lost++
         away.form.push('W'); home.form.push('L')
+      } else if (m.homePenaltyScore !== null && m.awayPenaltyScore !== null) {
+        if (m.homePenaltyScore > m.awayPenaltyScore) {
+          home.won++; home.points += 3; away.lost++
+          home.form.push('W'); away.form.push('L')
+        } else {
+          away.won++; away.points += 3; home.lost++
+          away.form.push('W'); home.form.push('L')
+        }
       } else {
         home.drawn++; home.points += 1; away.drawn++; away.points += 1
         home.form.push('D'); away.form.push('D')

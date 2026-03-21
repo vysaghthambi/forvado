@@ -57,29 +57,29 @@ export default function MatchDetailLoading() {
       <div style={{ background: 'linear-gradient(155deg,#0c1322 0%,#12102a 50%,#0f1a12 100%)', border: '1px solid var(--border)', borderRadius: 12, padding: '22px 22px 0' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 20, alignItems: 'flex-start' }}>
           {/* Home team */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, paddingBottom: 20 }}>
-            <S w={58} h={58} r={13} />
-            <S w={110} h={16} r={5} />
-            <S w={60} h={11} r={3} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', alignItems: 'flex-end', padding: '0 16px' }}>
-              {[...Array(3)].map((_, i) => <S key={i} w={120} h={12} r={4} />)}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, paddingBottom: 20, minWidth: 0 }}>
+            <S w={40} h={40} r={10} />
+            <S w="70%" h={14} r={5} />
+            <S w={50} h={10} r={3} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', alignItems: 'flex-end', padding: '0 8px' }}>
+              {[...Array(3)].map((_, i) => <S key={i} w="60%" h={11} r={4} />)}
             </div>
           </div>
 
           {/* Score center */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '0 8px 22px', flexShrink: 0 }}>
-            <S w={60} h={11} r={4} />
-            <S w={100} h={52} r={8} />
-            <S w={70} h={20} r={5} />
+            <S w={50} h={10} r={4} />
+            <S w={80} h={44} r={8} />
+            <S w={60} h={18} r={5} />
           </div>
 
           {/* Away team */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, paddingBottom: 20 }}>
-            <S w={58} h={58} r={13} />
-            <S w={110} h={16} r={5} />
-            <S w={60} h={11} r={3} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', alignItems: 'flex-start', padding: '0 16px' }}>
-              {[...Array(3)].map((_, i) => <S key={i} w={120} h={12} r={4} />)}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, paddingBottom: 20, minWidth: 0 }}>
+            <S w={40} h={40} r={10} />
+            <S w="70%" h={14} r={5} />
+            <S w={50} h={10} r={3} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', alignItems: 'flex-start', padding: '0 8px' }}>
+              {[...Array(3)].map((_, i) => <S key={i} w="60%" h={11} r={4} />)}
             </div>
           </div>
         </div>
@@ -88,8 +88,8 @@ export default function MatchDetailLoading() {
       {/* Player of Match banner */}
       <div style={{ height: 44, borderRadius: 10, background: 'rgba(245,200,66,.06)', border: '1px solid rgba(245,200,66,.15)' }} />
 
-      {/* Lineup tables — 2 col */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      {/* Lineup tables — 2 col on desktop, stacked on mobile */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <LineupTableSkeleton />
         <LineupTableSkeleton />
       </div>

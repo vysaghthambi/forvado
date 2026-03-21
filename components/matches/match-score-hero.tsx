@@ -243,7 +243,7 @@ export function MatchScoreHero({ initialMatch, initialEvents = [], canManage = f
 
           {isPSO && match.homePenaltyScore !== null && (
             <div style={{ fontSize: 12, color: 'var(--muted-clr)', marginTop: 4 }}>
-              ({match.homePenaltyScore} – {match.awayPenaltyScore} pens)
+              ({match.homePenaltyScore} – {match.awayPenaltyScore})
             </div>
           )}
 
