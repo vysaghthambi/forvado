@@ -268,7 +268,7 @@ export default async function MatchPage({ params }: Props) {
 
       {/* Lineups */}
       {hasLineups && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Home lineup */}
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
             <div style={{ padding: '13px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

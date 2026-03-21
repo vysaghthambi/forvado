@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -29,9 +30,10 @@ interface Props {
 
 export function TeamRoster({ teamId, members, isOwner, ownerId }: Props) {
   const router = useRouter()
+  const [confirmRemove, setConfirmRemove] = useState<{ userId: string; name: string } | null>(null)
 
   async function removeMember(userId: string, name: string) {
-    if (!confirm(`Remove ${name} from the team?`)) return
+    setConfirmRemove(null)
     const res = await fetch(`/api/teams/${teamId}/members/${userId}`, { method: 'DELETE' })
     const data = await res.json()
     if (!res.ok) { toast.error(data.error ?? 'Failed to remove member'); return }
@@ -117,13 +119,37 @@ export function TeamRoster({ teamId, members, isOwner, ownerId }: Props) {
               variant="ghost"
               size="icon"
               className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
-              onClick={() => removeMember(m.userId, m.user.displayName)}
+              onClick={() => setConfirmRemove({ userId: m.userId, name: m.user.displayName })}
             >
               <UserMinus className="h-3.5 w-3.5" />
             </Button>
           )}
         </div>
       ))}
+
+      {/* ── Confirm remove member dialog ── */}
+      {confirmRemove && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setConfirmRemove(null) }}
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--bg1)', border: '1px solid var(--border2)', borderRadius: 16, width: 380, maxWidth: 'calc(100vw - 40px)', boxShadow: '0 20px 60px rgba(0,0,0,.6)', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontFamily: 'var(--font-heading), Rajdhani, sans-serif', fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Remove Player</span>
+              <button onClick={() => setConfirmRemove(null)} style={{ width: 26, height: 26, borderRadius: 6, background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--muted-clr)', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+            </div>
+            <div style={{ padding: 20 }}>
+              <p style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.6 }}>
+                Remove <span style={{ fontWeight: 600, color: 'var(--text)' }}>{confirmRemove.name}</span> from the team?
+              </p>
+            </div>
+            <div style={{ padding: '13px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button onClick={() => setConfirmRemove(null)} style={{ padding: '7px 16px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text2)', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+              <button onClick={() => removeMember(confirmRemove.userId, confirmRemove.name)} style={{ padding: '7px 18px', borderRadius: 8, background: 'var(--live)', color: '#fff', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Remove</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
