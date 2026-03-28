@@ -2,7 +2,7 @@ import { requireUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import { canManageTournament, autoUpdateTournamentStatus } from '@/services/tournaments'
-import { calculateStandings, calculateGroupStandings } from '@/services/standings'
+import { computeLeagueStandings, computeGroupStandings } from '@/services/standings'
 import { StandingsTable } from '@/components/tournaments/standings-table'
 import { GroupStandingsTabs } from '@/components/tournaments/group-standings-tabs'
 import { FixturesList } from '@/components/tournaments/fixtures-list'
@@ -13,8 +13,8 @@ import { unstable_cache } from 'next/cache'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const t = await prisma.tournament.findUnique({ where: { id, deletedAt: null }, select: { name: true } })
-  return { title: t ? `${t.name} — Forvado` : 'Tournament — Forvado' }
+  const [tournament] = await getTournamentDetailData(id)
+  return { title: tournament ? `${tournament.name} — Forvado` : 'Tournament — Forvado' }
 }
 
 
@@ -92,17 +92,24 @@ export default async function TournamentDetailPage({ params }: Props) {
   const user = await requireUser()
   const { id } = await params
 
-  const [tournament, goalEvents, cardEvents, potmMatches] = await getTournamentDetailData(id)
+  // Fetch tournament data and check manage permission in parallel
+  const [[tournament, goalEvents, cardEvents, potmMatches], canManage] = await Promise.all([
+    getTournamentDetailData(id),
+    canManageTournament(id, user.id, user.role),
+  ])
 
   if (!tournament) notFound()
-  if (!tournament.isPublished && !(await canManageTournament(id, user.id, user.role))) notFound()
+  if (!tournament.isPublished && !canManage) notFound()
 
-  const [currentStatus, canManage, leagueRows, groupStandings] = await Promise.all([
-    autoUpdateTournamentStatus(id, tournament),
-    canManageTournament(id, user.id, user.role), // free — deduped by React cache()
-    tournament.format === 'LEAGUE' ? calculateStandings(id) : Promise.resolve(null),
-    tournament.format === 'GROUP_KNOCKOUT' ? calculateGroupStandings(id) : Promise.resolve(null),
-  ])
+  // Status update needs tournament data; standings computed from already-fetched data (no extra DB query)
+  const currentStatus = await autoUpdateTournamentStatus(id, tournament)
+
+  const leagueRows = tournament.format === 'LEAGUE'
+    ? computeLeagueStandings(tournament.teams, tournament.matches)
+    : null
+  const groupStandings = tournament.format === 'GROUP_KNOCKOUT'
+    ? computeGroupStandings(tournament.groups, tournament.teams, tournament.matches)
+    : null
   const showStandings = tournament.format === 'LEAGUE' || tournament.format === 'GROUP_KNOCKOUT'
 
   // Stat strip

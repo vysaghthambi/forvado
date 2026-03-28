@@ -9,8 +9,8 @@ import { unstable_cache } from 'next/cache'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const t = await prisma.tournament.findUnique({ where: { id, deletedAt: null }, select: { name: true } })
-  return { title: t ? `Fixtures · ${t.name} — Forvado` : 'Fixtures — Forvado' }
+  const tournament = await getFixturesData(id)
+  return { title: tournament ? `Fixtures · ${tournament.name} — Forvado` : 'Fixtures — Forvado' }
 }
 
 type Props = { params: Promise<{ id: string }> }
@@ -52,10 +52,14 @@ export default async function TournamentFixturesPage({ params }: Props) {
   const tournament = await getFixturesData(id)
 
   if (!tournament) notFound()
-  if (!tournament.isPublished && !(await canManageTournament(id, user.id, user.role))) notFound()
 
-  await autoUpdateTournamentStatus(id, tournament)
-  const canManage = await canManageTournament(id, user.id, user.role)
+  const [, canManage] = await Promise.all([
+    autoUpdateTournamentStatus(id, tournament),
+    canManageTournament(id, user.id, user.role),
+  ])
+
+  if (!tournament.isPublished && !canManage) notFound()
+
   const canCreateFixture = canManage && ['DRAFT', 'UPCOMING', 'ONGOING'].includes(tournament.status)
 
   return (
