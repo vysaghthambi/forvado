@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { createClient } from '@/lib/supabase/client'
 import {
   Form,
   FormControl,
@@ -18,7 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Progress } from '@/components/ui/progress'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
 const STEPS = ['Profile', 'Position', 'Confirm'] as const
 
@@ -33,7 +32,6 @@ const schema = z.object({
       message: 'Must be between 1 and 99',
     }),
   dateOfBirth: z.string().optional(),
-  avatarUrl: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -45,13 +43,20 @@ const POSITION_LABELS: Record<string, string> = {
   FWD: 'Forward',
 }
 
+function getInitials(name: string) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? '')
+    .join('')
+}
+
 export function SetupWizard() {
   const router = useRouter()
   const [step, setStep] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
-  const [uploading, setUploading] = useState(false)
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -59,41 +64,9 @@ export function SetupWizard() {
       displayName: '',
       jerseyNumber: '',
       dateOfBirth: '',
-      avatarUrl: '',
     },
     mode: 'onTouched',
   })
-
-  const supabase = createClient()
-
-  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    if (file.size > 2 * 1024 * 1024) {
-      form.setError('avatarUrl', { message: 'Image must be under 2MB' })
-      return
-    }
-
-    setUploading(true)
-    const ext = file.name.split('.').pop()
-    const fileName = `avatar-${Date.now()}.${ext}`
-
-    const { data, error: uploadError } = await supabase.storage
-      .from('avatars')
-      .upload(fileName, file, { upsert: true })
-
-    if (uploadError || !data) {
-      form.setError('avatarUrl', { message: 'Upload failed. Try again.' })
-      setUploading(false)
-      return
-    }
-
-    const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(data.path)
-    form.setValue('avatarUrl', urlData.publicUrl)
-    setAvatarPreview(urlData.publicUrl)
-    setUploading(false)
-  }
 
   async function onSubmit(values: FormValues) {
     setSubmitting(true)
@@ -107,7 +80,7 @@ export function SetupWizard() {
         position: values.position,
         jerseyNumber: parseInt(values.jerseyNumber, 10),
         dateOfBirth: values.dateOfBirth ? new Date(values.dateOfBirth).toISOString() : null,
-        avatarUrl: values.avatarUrl || null,
+        avatarUrl: null,
       }),
     })
 
@@ -156,37 +129,12 @@ export function SetupWizard() {
           {/* Step 0: Profile */}
           {step === 0 && (
             <div className="space-y-4">
-              {/* Avatar Upload */}
               <div className="flex flex-col items-center gap-3">
                 <Avatar className="h-20 w-20">
-                  <AvatarImage src={avatarPreview ?? ''} alt="Avatar preview" />
                   <AvatarFallback className="text-lg">
-                    {displayName?.charAt(0)?.toUpperCase() || '?'}
+                    {displayName ? getInitials(displayName) : '?'}
                   </AvatarFallback>
                 </Avatar>
-                <label
-                  htmlFor="avatar-upload"
-                  className="cursor-pointer text-sm font-medium text-primary hover:underline"
-                >
-                  {uploading ? 'Uploading…' : 'Upload photo'}
-                </label>
-                <input
-                  id="avatar-upload"
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  className="hidden"
-                  onChange={handleAvatarUpload}
-                  disabled={uploading}
-                />
-                <FormField
-                  control={form.control}
-                  name="avatarUrl"
-                  render={() => (
-                    <FormItem className="hidden">
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
 
               <FormField
@@ -275,8 +223,9 @@ export function SetupWizard() {
               <h3 className="font-medium">Review your profile</h3>
               <div className="flex items-center gap-4">
                 <Avatar className="h-14 w-14">
-                  <AvatarImage src={avatarPreview ?? ''} />
-                  <AvatarFallback>{form.getValues('displayName')?.charAt(0)}</AvatarFallback>
+                  <AvatarFallback className="text-base">
+                    {getInitials(form.getValues('displayName'))}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="space-y-0.5 text-sm">
                   <p className="font-medium">{form.getValues('displayName')}</p>
@@ -309,11 +258,11 @@ export function SetupWizard() {
               </Button>
             )}
             {step < STEPS.length - 1 ? (
-              <Button type="button" className="flex-1" onClick={nextStep}>
+              <Button key="next" type="button" className="flex-1" onClick={nextStep}>
                 Next
               </Button>
             ) : (
-              <Button type="submit" className="flex-1" disabled={submitting}>
+              <Button key="submit" type="submit" className="flex-1" disabled={submitting}>
                 {submitting ? 'Saving…' : 'Complete Setup'}
               </Button>
             )}

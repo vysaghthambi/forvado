@@ -10,10 +10,7 @@ import { unstable_cache } from 'next/cache'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const m = await prisma.match.findUnique({
-    where: { id },
-    include: { homeTeam: { select: { name: true } }, awayTeam: { select: { name: true } } },
-  })
+  const m = await getMatchData(id)
   return { title: m ? `${m.homeTeam.name} vs ${m.awayTeam.name} — Forvado` : 'Match — Forvado' }
 }
 
